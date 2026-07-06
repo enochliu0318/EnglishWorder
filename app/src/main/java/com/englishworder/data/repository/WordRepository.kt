@@ -96,6 +96,7 @@ class WordRepository @Inject constructor(
         phonetic: String = "",
         meaning: String = "",
         example: String = "",
+        partOfSpeech: String = "",
         fetchIfNeeded: Boolean = true
     ): Long? {
         val normalized = text.trim()
@@ -113,6 +114,7 @@ class WordRepository @Inject constructor(
                 meaning = normalizedMeaning,
                 shortMeaning = normalizedShort,
                 example = example,
+                partOfSpeech = partOfSpeech.trim(),
                 fetchStatus = if (needsFetch) FetchStatus.PENDING else FetchStatus.OK
             ).toEntity()
         )
@@ -129,13 +131,23 @@ class WordRepository @Inject constructor(
 
     suspend fun importWords(listId: Long, entries: List<ParsedWordEntry>): ImportResult {
         var imported = 0
+        var updated = 0
         var skipped = 0
         var pendingFetch = 0
 
         entries.forEach { entry ->
             val existing = wordDao.getByText(listId, entry.text)
             if (existing != null) {
-                skipped++
+                val merged = mergeImportedFields(existing, entry)
+                if (merged != existing) {
+                    wordDao.update(merged)
+                    updated++
+                    if (merged.meaning.isBlank() && merged.fetchStatus == FetchStatus.PENDING) {
+                        pendingFetch++
+                    }
+                } else {
+                    skipped++
+                }
                 return@forEach
             }
 
@@ -150,6 +162,7 @@ class WordRepository @Inject constructor(
                     meaning = fullMeaning,
                     shortMeaning = short,
                     example = entry.example.orEmpty(),
+                    partOfSpeech = entry.partOfSpeech.orEmpty(),
                     fetchStatus = if (hasFullInfo) FetchStatus.OK else FetchStatus.PENDING
                 ).toEntity()
             )
@@ -166,8 +179,56 @@ class WordRepository @Inject constructor(
         return ImportResult(
             total = entries.size,
             imported = imported,
+            updated = updated,
             skipped = skipped,
             pendingFetch = pendingFetch
+        )
+    }
+
+    private fun mergeImportedFields(
+        existing: com.englishworder.data.local.entity.WordEntity,
+        entry: ParsedWordEntry
+    ): com.englishworder.data.local.entity.WordEntity {
+        val importedMeaning = entry.meaning?.trim()?.takeIf { it.isNotBlank() }
+            ?.let { MeaningFormatter.forLearning(it) }
+        val mergedMeaning = importedMeaning ?: existing.meaning
+        val mergedShort = if (importedMeaning != null) {
+            MeaningFormatter.short(importedMeaning)
+        } else {
+            existing.shortMeaning
+        }
+        return existing.copy(
+            phonetic = entry.phonetic?.trim()?.takeIf { it.isNotBlank() } ?: existing.phonetic,
+            meaning = mergedMeaning,
+            shortMeaning = mergedShort,
+            example = entry.example?.trim()?.takeIf { it.isNotBlank() } ?: existing.example,
+            partOfSpeech = entry.partOfSpeech?.trim()?.takeIf { it.isNotBlank() } ?: existing.partOfSpeech,
+            fetchStatus = when {
+                mergedMeaning.isNotBlank() -> FetchStatus.OK
+                existing.fetchStatus == FetchStatus.OK -> FetchStatus.OK
+                else -> FetchStatus.PENDING
+            }
+        )
+    }
+
+    suspend fun updateWord(
+        wordId: Long,
+        meaning: String,
+        example: String,
+        partOfSpeech: String,
+        phonetic: String
+    ) {
+        val word = wordDao.getById(wordId) ?: return
+        val normalizedMeaning = MeaningFormatter.forLearning(meaning.trim())
+        wordDao.update(
+            word.copy(
+                meaning = normalizedMeaning,
+                shortMeaning = MeaningFormatter.short(normalizedMeaning),
+                example = example.trim(),
+                partOfSpeech = partOfSpeech.trim(),
+                phonetic = phonetic.trim(),
+                fetchStatus = if (normalizedMeaning.isNotBlank()) FetchStatus.OK else word.fetchStatus
+            )
         )
     }
 
@@ -180,17 +241,22 @@ class WordRepository @Inject constructor(
         return success
     }
 
-    suspend fun fetchWordInfo(wordId: Long): Boolean {
+    suspend fun fetchWordInfo(wordId: Long, force: Boolean = false): Boolean {
         val word = wordDao.getById(wordId) ?: return false
         return dictionaryProvider.lookup(word.text)
             .onSuccess { info ->
                 wordDao.update(
                     word.copy(
-                        phonetic = info.phonetic,
-                        meaning = info.meaning,
-                        shortMeaning = info.shortMeaning.ifBlank { MeaningFormatter.short(info.meaning) },
-                        example = info.example,
-                        audioUrl = info.audioUrl,
+                        phonetic = pickField(word.phonetic, info.phonetic, force),
+                        meaning = pickField(word.meaning, info.meaning, force),
+                        shortMeaning = if (!force && word.meaning.isNotBlank()) {
+                            word.shortMeaning
+                        } else {
+                            info.shortMeaning.ifBlank { MeaningFormatter.short(info.meaning) }
+                        },
+                        example = pickField(word.example, info.example, force),
+                        partOfSpeech = pickField(word.partOfSpeech, info.partOfSpeech, force),
+                        audioUrl = info.audioUrl.ifBlank { word.audioUrl },
                         fetchStatus = FetchStatus.OK
                     )
                 )
@@ -199,6 +265,11 @@ class WordRepository @Inject constructor(
                 wordDao.update(word.copy(fetchStatus = FetchStatus.FAILED))
             }
             .isSuccess
+    }
+
+    private fun pickField(existing: String, fetched: String, force: Boolean): String {
+        if (!force && existing.isNotBlank()) return existing
+        return fetched.ifBlank { existing }
     }
 
     suspend fun deleteWord(wordId: Long) {

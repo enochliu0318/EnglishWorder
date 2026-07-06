@@ -124,9 +124,22 @@ class WordDetailViewModel @Inject constructor(
             }
             var ok = 0
             list.forEach { item ->
-                if (repository.fetchWordInfo(item.word.id)) ok++
+                if (repository.fetchWordInfo(item.word.id, force = false)) ok++
             }
-            _message.value = "已更新 $ok/${list.size} 个释义"
+            _message.value = "已补全 $ok/${list.size} 个单词的空缺字段"
+        }
+    }
+
+    fun updateWord(
+        wordId: Long,
+        meaning: String,
+        example: String,
+        partOfSpeech: String,
+        phonetic: String
+    ) {
+        viewModelScope.launch {
+            repository.updateWord(wordId, meaning, example, partOfSpeech, phonetic)
+            _message.value = "已保存"
         }
     }
 

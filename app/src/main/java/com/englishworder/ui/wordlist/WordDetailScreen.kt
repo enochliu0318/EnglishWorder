@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -49,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.englishworder.domain.model.FetchStatus
 import com.englishworder.domain.model.ReviewStatus
+import com.englishworder.domain.model.Word
 import com.englishworder.domain.model.WordWithReview
 import com.englishworder.ui.components.AppCard
 import com.englishworder.ui.components.rememberWordSpeaker
@@ -67,6 +70,7 @@ fun WordDetailScreen(
     val message by viewModel.message.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var newWord by remember { mutableStateOf("") }
+    var editingWord by remember { mutableStateOf<Word?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val speaker = rememberWordSpeaker()
 
@@ -89,7 +93,7 @@ fun WordDetailScreen(
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refreshAllMeanings() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "刷新释义")
+                        Icon(Icons.Default.Refresh, contentDescription = "补全空缺")
                     }
                     IconButton(onClick = onImport) {
                         Icon(Icons.Default.Upload, contentDescription = "导入")
@@ -115,6 +119,7 @@ fun WordDetailScreen(
                 WordItem(
                     item = item,
                     onSpeak = { speaker.speak(item.word.text, item.word.audioUrl) },
+                    onEdit = { editingWord = item.word },
                     onToggleMastered = { mastered ->
                         viewModel.toggleMastered(item.word.id, mastered)
                     },
@@ -148,12 +153,87 @@ fun WordDetailScreen(
             }
         )
     }
+
+    editingWord?.let { word ->
+        WordEditDialog(
+            word = word,
+            onDismiss = { editingWord = null },
+            onSave = { meaning, example, partOfSpeech, phonetic ->
+                viewModel.updateWord(word.id, meaning, example, partOfSpeech, phonetic)
+                editingWord = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun WordEditDialog(
+    word: Word,
+    onDismiss: () -> Unit,
+    onSave: (meaning: String, example: String, partOfSpeech: String, phonetic: String) -> Unit
+) {
+    var meaning by remember(word.id) { mutableStateOf(word.meaning) }
+    var example by remember(word.id) { mutableStateOf(word.example) }
+    var partOfSpeech by remember(word.id) { mutableStateOf(word.partOfSpeech) }
+    var phonetic by remember(word.id) { mutableStateOf(word.phonetic) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑 · ${word.text}") },
+        text = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = partOfSpeech,
+                    onValueChange = { partOfSpeech = it },
+                    label = { Text("词性") },
+                    placeholder = { Text("如 n. / v. / adj.") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = phonetic,
+                    onValueChange = { phonetic = it },
+                    label = { Text("音标") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = meaning,
+                    onValueChange = { meaning = it },
+                    label = { Text("释义") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+                OutlinedTextField(
+                    value = example,
+                    onValueChange = { example = it },
+                    label = { Text("例句") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(meaning, example, partOfSpeech, phonetic) }) {
+                Text("保存")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }
 
 @Composable
 private fun WordItem(
     item: WordWithReview,
     onSpeak: () -> Unit,
+    onEdit: () -> Unit,
     onToggleMastered: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -171,9 +251,23 @@ private fun WordItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clickable(onClick = onEdit)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(word.text, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        if (word.partOfSpeech.isNotBlank()) {
+                            Text(
+                                word.partOfSpeech,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AppColors.textMuted
+                            )
+                        }
                         if (isMastered) {
                             Text(
                                 "已掌握",
@@ -192,13 +286,24 @@ private fun WordItem(
                         Text(
                             when (word.fetchStatus) {
                                 FetchStatus.PENDING -> "正在补全..."
-                                FetchStatus.FAILED -> "补全失败"
+                                FetchStatus.FAILED -> "补全失败，点击编辑"
                                 FetchStatus.OK -> ""
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
+                    if (word.example.isNotBlank()) {
+                        Text(
+                            "例句：${word.example}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AppColors.textSecondary,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = "编辑", tint = AppColors.heroGreen)
                 }
                 IconButton(onClick = onSpeak) {
                     Icon(Icons.Default.VolumeUp, contentDescription = "发音", tint = AppColors.heroGreen)

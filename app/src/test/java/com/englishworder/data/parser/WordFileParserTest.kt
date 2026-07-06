@@ -35,4 +35,15 @@ class WordFileParserTest {
         assertEquals("abandon", result[0].text)
         assertEquals("放弃", result[0].meaning)
     }
+
+    @Test
+    fun parseCsv_posColumn_supported() {
+        val csv = "word,pos,meaning,example\nrun,v.,跑,He runs every day.\n"
+        val result = WordFileParser.parseCsv(ByteArrayInputStream(csv.toByteArray()))
+        assertEquals(1, result.size)
+        assertEquals("run", result[0].text)
+        assertEquals("v.", result[0].partOfSpeech)
+        assertEquals("跑", result[0].meaning)
+        assertEquals("He runs every day.", result[0].example)
+    }
 }

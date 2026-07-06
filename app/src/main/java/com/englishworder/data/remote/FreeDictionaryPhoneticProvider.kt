@@ -41,12 +41,14 @@ class FreeDictionaryPhoneticProvider @Inject constructor(
         val shortMeaning = MeaningFormatter.short(firstEnglish)
 
         val exampleEn = extractExample(response)
+        val partOfSpeech = response.meanings?.firstOrNull()?.partOfSpeech?.trim().orEmpty()
 
         WordInfo(
             phonetic = phonetic,
             meaning = meaning,
             shortMeaning = shortMeaning,
             example = exampleEn,
+            partOfSpeech = partOfSpeech,
             audioUrl = audioUrl
         )
     }

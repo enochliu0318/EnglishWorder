@@ -136,7 +136,8 @@ fun ImportScreen(
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("格式说明", fontWeight = FontWeight.Bold)
                             Text("• CSV / Excel，第一列为单词")
-                            Text("• 可选列：音标、释义、例句")
+                            Text("• 可选列：音标、词性、释义、例句")
+                            Text("• 导入的释义/例句/词性优先于自动补全")
                             Text("• 只填单词时自动补全中文释义和音标")
                         }
                     }
@@ -152,7 +153,7 @@ fun ImportScreen(
                     ) { Text("选择文件导入") }
 
                     OutlinedButton(onClick = {
-                        val template = "word,phonetic,meaning,example\nabandon,/əˈbændən/,放弃,They had to abandon the ship.\n"
+                        val template = "word,phonetic,pos,meaning,example\nabandon,/əˈbændən/,v.,放弃,They had to abandon the ship.\n"
                         val file = File(context.cacheDir, "word_template.csv")
                         file.writeText(template)
                         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -172,7 +173,7 @@ fun ImportScreen(
                         AppCard {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("导入完成", fontWeight = FontWeight.Bold, color = AppColors.heroGreen)
-                                Text("总计: ${result.total} · 成功: ${result.imported} · 跳过: ${result.skipped}")
+                                Text("总计: ${result.total} · 新增: ${result.imported} · 更新: ${result.updated} · 跳过: ${result.skipped}")
                                 Text("待补全中文释义: ${result.pendingFetch}")
                             }
                         }

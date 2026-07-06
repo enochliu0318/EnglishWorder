@@ -31,6 +31,7 @@ data class Word(
     val meaning: String = "",
     val shortMeaning: String = "",
     val example: String = "",
+    val partOfSpeech: String = "",
     val audioUrl: String = "",
     val fetchStatus: FetchStatus = FetchStatus.PENDING,
     val createdAt: Long = System.currentTimeMillis()
@@ -58,7 +59,8 @@ data class ParsedWordEntry(
     val text: String,
     val phonetic: String? = null,
     val meaning: String? = null,
-    val example: String? = null
+    val example: String? = null,
+    val partOfSpeech: String? = null
 )
 
 data class WordInfo(
@@ -66,12 +68,14 @@ data class WordInfo(
     val meaning: String,
     val shortMeaning: String = "",
     val example: String,
+    val partOfSpeech: String = "",
     val audioUrl: String
 )
 
 data class ImportResult(
     val total: Int,
     val imported: Int,
+    val updated: Int = 0,
     val skipped: Int,
     val pendingFetch: Int
 )

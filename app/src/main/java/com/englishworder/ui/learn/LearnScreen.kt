@@ -145,6 +145,14 @@ fun LearnSessionScreen(
                                     ) {
                                         Text("释义", style = MaterialTheme.typography.labelMedium)
                                         Spacer(Modifier.height(12.dp))
+                                        if (current.word.partOfSpeech.isNotBlank()) {
+                                            Text(
+                                                current.word.partOfSpeech,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = AppColors.textMuted
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                        }
                                         Text(current.word.meaning, fontSize = 22.sp, fontWeight = FontWeight.Medium,
                                             textAlign = TextAlign.Center, lineHeight = 32.sp, color = AppColors.textPrimary)
                                         if (current.word.example.isNotBlank()) {

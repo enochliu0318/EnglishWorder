@@ -11,6 +11,7 @@ object WordFileParser {
     private val PHONETIC_HEADERS = setOf("phonetic", "音标", "ipa")
     private val MEANING_HEADERS = setOf("meaning", "释义", "翻译", "中文", "definition")
     private val EXAMPLE_HEADERS = setOf("example", "例句", "sentence")
+    private val POS_HEADERS = setOf("pos", "part of speech", "partofspeech", "词性", "词类")
 
     fun parseCsv(inputStream: InputStream): List<ParsedWordEntry> {
         val lines = inputStream.bufferedReader().readLines()
@@ -63,6 +64,7 @@ object WordFileParser {
         val phoneticIndex = if (hasHeader) findColumnIndex(rows.first(), PHONETIC_HEADERS) else -1
         val meaningIndex = if (hasHeader) findColumnIndex(rows.first(), MEANING_HEADERS) else -1
         val exampleIndex = if (hasHeader) findColumnIndex(rows.first(), EXAMPLE_HEADERS) else -1
+        val posIndex = if (hasHeader) findColumnIndex(rows.first(), POS_HEADERS) else -1
 
         return dataRows.mapNotNull { row ->
             val text = row.getOrNull(wordIndex)?.trim().orEmpty()
@@ -71,7 +73,8 @@ object WordFileParser {
                 text = text,
                 phonetic = row.getOrNull(phoneticIndex)?.trim()?.takeIf { it.isNotBlank() },
                 meaning = row.getOrNull(meaningIndex)?.trim()?.takeIf { it.isNotBlank() },
-                example = row.getOrNull(exampleIndex)?.trim()?.takeIf { it.isNotBlank() }
+                example = row.getOrNull(exampleIndex)?.trim()?.takeIf { it.isNotBlank() },
+                partOfSpeech = row.getOrNull(posIndex)?.trim()?.takeIf { it.isNotBlank() }
             )
         }.distinctBy { it.text.lowercase() }
     }

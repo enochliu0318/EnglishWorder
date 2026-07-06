@@ -43,6 +43,7 @@ data class WordEntity(
     val meaning: String = "",
     val shortMeaning: String = "",
     val example: String = "",
+    val partOfSpeech: String = "",
     val audioUrl: String = "",
     val fetchStatus: FetchStatus = FetchStatus.PENDING,
     val createdAt: Long = System.currentTimeMillis()
@@ -78,6 +79,7 @@ data class WordWithReviewEntity(
     val meaning: String,
     val shortMeaning: String,
     val example: String,
+    val partOfSpeech: String,
     val audioUrl: String,
     val fetchStatus: FetchStatus,
     val createdAt: Long,

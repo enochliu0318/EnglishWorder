@@ -6,6 +6,7 @@ data class YoudaoParseResult(
     val meaning: String,
     val shortMeaning: String,
     val phonetic: String,
+    val partOfSpeech: String,
     val audioUrl: String
 )
 
@@ -25,11 +26,13 @@ object YoudaoParser {
 
         val phonetic = parsePhonetic(json, normalized)
         val audioUrl = "https://dict.youdao.com/dictvoice?audio=$normalized&type=2"
+        val partOfSpeech = parsePartOfSpeech(json)
 
         return YoudaoParseResult(
             meaning = meaning,
             shortMeaning = toShort(meaning),
             phonetic = phonetic,
+            partOfSpeech = partOfSpeech,
             audioUrl = audioUrl
         )
     }
@@ -101,6 +104,22 @@ object YoudaoParser {
     private fun toShort(meaning: String): String {
         val cleaned = meaning.replace(Regex("[^\\u4e00-\\u9fff]"), "")
         return if (cleaned.length <= 5) cleaned else cleaned.take(5)
+    }
+
+    private fun parsePartOfSpeech(json: JSONObject): String {
+        val trs = json.optJSONObject("ec")?.optJSONArray("word")
+            ?.optJSONObject(0)?.optJSONArray("trs") ?: return ""
+        if (trs.length() == 0) return ""
+        val raw = trs.getJSONObject(0)
+            .optJSONArray("tr")?.getJSONObject(0)
+            ?.optJSONObject("l")?.optJSONArray("i")
+            ?.optString(0).orEmpty()
+        return extractPosPrefix(raw)
+    }
+
+    private fun extractPosPrefix(raw: String): String {
+        val match = Regex("^(\\w+\\.)").find(raw.trim()) ?: return ""
+        return match.groupValues[1]
     }
 
     private fun parsePhonetic(json: JSONObject, word: String): String {

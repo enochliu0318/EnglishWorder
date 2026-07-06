@@ -3,6 +3,7 @@ package com.englishworder.di
 import android.content.Context
 import androidx.room.Room
 import com.englishworder.data.local.MIGRATION_1_2
+import com.englishworder.data.local.MIGRATION_2_3
 import com.englishworder.data.local.EnglishWorderDatabase
 import com.englishworder.data.local.dao.ReviewRecordDao
 import com.englishworder.data.local.dao.WordDao
@@ -80,7 +81,7 @@ object AppModule {
             context,
             EnglishWorderDatabase::class.java,
             "englishworder.db"
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 
     @Provides

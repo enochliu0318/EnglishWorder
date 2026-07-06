@@ -36,6 +36,7 @@ class YoudaoDictionaryProvider @Inject constructor(
                 meaning = parsed.meaning,
                 shortMeaning = parsed.shortMeaning,
                 example = "",
+                partOfSpeech = parsed.partOfSpeech,
                 audioUrl = audioUrl
             )
         }
