@@ -87,11 +87,13 @@ class SpellingViewModel @Inject constructor(
     }
 
     fun nextWord() {
-        val next = _state.value.currentIndex + 1
-        if (next >= _state.value.words.size) {
-            _state.value = _state.value.copy(finished = true)
+        val state = _state.value
+        if (!state.showAnswer || state.finished) return
+        val next = state.currentIndex + 1
+        if (next >= state.words.size) {
+            _state.value = state.copy(finished = true)
         } else {
-            _state.value = _state.value.copy(
+            _state.value = state.copy(
                 currentIndex = next,
                 input = "",
                 feedback = null,

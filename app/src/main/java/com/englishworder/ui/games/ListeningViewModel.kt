@@ -80,11 +80,18 @@ class ListeningViewModel @Inject constructor(
             )
             if (distractors.size < 3) return@mapNotNull null
             val correct = item.word.text.trim()
-            val options = (distractors + correct).shuffled()
+            val uniqueDistractors = distractors
+                .map { it.trim() }
+                .filter { !it.equals(correct, ignoreCase = true) }
+                .distinct()
+            if (uniqueDistractors.size < 3) return@mapNotNull null
+            val options = (uniqueDistractors.take(3) + correct).shuffled()
+            val correctIndex = options.indexOfFirst { it.equals(correct, ignoreCase = true) }
+            if (correctIndex < 0) return@mapNotNull null
             ListeningQuestion(
                 word = item,
                 options = options,
-                correctIndex = options.indexOfFirst { it.equals(correct, ignoreCase = true) }
+                correctIndex = correctIndex
             )
         }
     }
@@ -135,6 +142,7 @@ class ListeningViewModel @Inject constructor(
 
     fun nextQuestion() {
         val state = _state.value
+        if (!state.answered || state.finished) return
         val next = state.currentIndex + 1
 
         if (next >= state.questions.size) {

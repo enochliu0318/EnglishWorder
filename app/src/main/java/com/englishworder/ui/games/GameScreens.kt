@@ -3,10 +3,12 @@ package com.englishworder.ui.games
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -75,14 +77,19 @@ fun LinkMatchGameScreen(
                     onRestart = if (state.tiles.isNotEmpty()) {{ viewModel.restart() }} else null
                 )
                 else -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Text("得分 ${state.score} · 步数 ${state.moves}", style = MaterialTheme.typography.bodyMedium)
                         Text("英文单词可点击发音", style = MaterialTheme.typography.bodySmall, color = AppColors.textMuted)
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
                         ) {
                             items(state.tiles.filter { !it.matched }, key = { it.id }) { tile ->
                                 val selected = state.selectedId == tile.id
@@ -182,69 +189,92 @@ fun SpellingGameScreen(
                     onRestart = if (state.words.isNotEmpty()) {{ viewModel.restart() }} else null
                 )
                 else -> {
-                    val current = state.current ?: return@ScreenPadding
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "第 ${state.currentIndex + 1}/${state.words.size} 题",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        AppCard {
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text("请拼写以下单词", style = MaterialTheme.typography.labelLarge, color = AppColors.textMuted)
+                    GameQuestionPager(
+                        pageCount = state.words.size,
+                        currentPage = state.currentIndex,
+                        canSwipeForward = state.showAnswer,
+                        swipeHint = spellingSwipeHint(state.currentIndex, state.words.size),
+                        onSwipeForward = { viewModel.nextWord() }
+                    ) { page ->
+                        val current = state.words.getOrNull(page) ?: return@GameQuestionPager
+                        val isActive = page == state.currentIndex
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 32.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            item {
                                 Text(
-                                    current.word.gameMeaning(),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(top = 12.dp)
+                                    "第 ${state.currentIndex + 1}/${state.words.size} 题",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
-                        }
-                        androidx.compose.material3.OutlinedTextField(
-                            value = state.input,
-                            onValueChange = viewModel::updateInput,
-                            label = { Text("输入单词") },
-                            enabled = !state.showAnswer,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        state.feedback?.let {
-                            Text(
-                                it,
-                                color = if (state.lastAnswerCorrect) CorrectGreen else WrongRed,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        if (state.showAnswer && !state.lastAnswerCorrect) {
-                            Text(
-                                current.word.text,
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.heroGreen,
-                                modifier = Modifier.clickable {
-                                    speaker.speak(current.word.text, current.word.audioUrl)
+                            item {
+                                AppCard {
+                                    Column(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("请拼写以下单词", style = MaterialTheme.typography.labelLarge, color = AppColors.textMuted)
+                                        Text(
+                                            current.word.gameMeaning(),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.padding(top = 12.dp)
+                                        )
+                                    }
                                 }
-                            )
-                            Text("点击上方单词听发音", style = MaterialTheme.typography.labelSmall, color = AppColors.textMuted)
-                        }
-                        if (!state.showAnswer) {
-                            androidx.compose.material3.Button(
-                                onClick = { viewModel.submit() },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = state.input.isNotBlank()
-                            ) { Text("提交") }
-                        } else {
-                            androidx.compose.material3.Button(
-                                onClick = { viewModel.nextWord() },
-                                modifier = Modifier.fillMaxWidth()
-                            ) { Text("下一个") }
+                            }
+                            item {
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = if (isActive) state.input else "",
+                                    onValueChange = { if (isActive) viewModel.updateInput(it) },
+                                    label = { Text("输入单词") },
+                                    enabled = isActive && !state.showAnswer,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            if (isActive) {
+                                state.feedback?.let { feedback ->
+                                    item {
+                                        Text(
+                                            feedback,
+                                            color = if (state.lastAnswerCorrect) CorrectGreen else WrongRed,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                if (state.showAnswer && !state.lastAnswerCorrect) {
+                                    item {
+                                        Text(
+                                            current.word.text,
+                                            style = MaterialTheme.typography.headlineSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AppColors.heroGreen,
+                                            modifier = Modifier.clickable {
+                                                speaker.speak(current.word.text, current.word.audioUrl)
+                                            }
+                                        )
+                                    }
+                                    item {
+                                        Text("点击上方单词听发音", style = MaterialTheme.typography.labelSmall, color = AppColors.textMuted)
+                                    }
+                                }
+                                if (!state.showAnswer) {
+                                    item {
+                                        androidx.compose.material3.Button(
+                                            onClick = { viewModel.submit() },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            enabled = state.input.isNotBlank()
+                                        ) { Text("提交") }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

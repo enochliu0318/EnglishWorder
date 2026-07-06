@@ -44,7 +44,8 @@ import com.englishworder.ui.navigation.Routes
 import com.englishworder.domain.model.ReviewMode
 import com.englishworder.domain.model.StudyMode
 import com.englishworder.ui.progress.ProgressScreen
-import com.englishworder.ui.review.GameSetupScreen
+import com.englishworder.ui.review.GameListSelectScreen
+import com.englishworder.ui.review.GameModeSelectScreen
 import com.englishworder.ui.review.ReviewHubScreen
 import com.englishworder.ui.splash.SplashScreen
 import com.englishworder.ui.theme.EnglishWorderTheme
@@ -194,7 +195,7 @@ private fun MainNavHost() {
             }
             composable(Routes.PROGRESS) {
                 ProgressScreen(
-                    onStartReview = { navController.navigate(Routes.gameSetup("quiz", "scheduled")) },
+                    onStartReview = { navController.navigate(Routes.gameMode("quiz", "scheduled")) },
                     onStartLearn = { listId ->
                         navController.navigate(Routes.learnSession(listId, StudyMode.NEW_WORDS.name.lowercase()))
                     }
@@ -218,12 +219,12 @@ private fun MainNavHost() {
             composable(Routes.REVIEW) {
                 ReviewHubScreen(
                     onSetupGame = { gameType ->
-                        navController.navigate(Routes.gameSetup(gameType))
+                        navController.navigate(Routes.gameMode(gameType))
                     }
                 )
             }
             composable(
-                route = Routes.GAME_SETUP,
+                route = Routes.GAME_MODE,
                 arguments = listOf(
                     navArgument("gameType") { type = NavType.StringType },
                     navArgument("defaultMode") {
@@ -234,16 +235,34 @@ private fun MainNavHost() {
             ) { entry ->
                 val gameType = entry.arguments?.getString("gameType") ?: return@composable
                 val defaultMode = parseReviewMode(entry.arguments?.getString("defaultMode"))
-                GameSetupScreen(
+                GameModeSelectScreen(
                     gameType = gameType,
                     initialMode = defaultMode,
-                    onStart = { listId, mode ->
+                    onModeSelected = { mode ->
+                        navController.navigate(Routes.gameListPick(gameType, mode.name.lowercase()))
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Routes.GAME_LIST_PICK,
+                arguments = listOf(
+                    navArgument("gameType") { type = NavType.StringType },
+                    navArgument("mode") { type = NavType.StringType }
+                )
+            ) { entry ->
+                val gameType = entry.arguments?.getString("gameType") ?: return@composable
+                val mode = parseReviewMode(entry.arguments?.getString("mode"))
+                GameListSelectScreen(
+                    gameType = gameType,
+                    mode = mode,
+                    onStart = { listId ->
                         val route = when (gameType) {
                             "quiz" -> Routes.gameQuiz(listId, mode.name.lowercase())
                             "link" -> Routes.gameLink(listId, mode.name.lowercase())
                             "spelling" -> Routes.gameSpelling(listId, mode.name.lowercase())
                             "listening" -> Routes.gameListening(listId, mode.name.lowercase())
-                            else -> return@GameSetupScreen
+                            else -> return@GameListSelectScreen
                         }
                         navController.navigate(route)
                     },

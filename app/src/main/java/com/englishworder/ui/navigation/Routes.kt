@@ -9,6 +9,8 @@ object Routes {
     const val LEARN_SESSION = "learn_session/{listId}/{mode}"
     const val REVIEW = "review"
     const val GAME_SETUP = "game_setup/{gameType}?defaultMode={defaultMode}"
+    const val GAME_MODE = "game_mode/{gameType}?defaultMode={defaultMode}"
+    const val GAME_LIST_PICK = "game_list/{gameType}/{mode}"
     const val GAME_QUIZ = "game_quiz/{listId}/{mode}"
     const val GAME_LINK = "game_link/{listId}/{mode}"
     const val GAME_SPELLING = "game_spelling/{listId}/{mode}"
@@ -20,6 +22,9 @@ object Routes {
     fun learnSession(listId: Long, mode: String) = "learn_session/$listId/$mode"
     fun gameSetup(gameType: String, defaultMode: String = "free_practice") =
         "game_setup/$gameType?defaultMode=$defaultMode"
+    fun gameMode(gameType: String, defaultMode: String = "free_practice") =
+        "game_mode/$gameType?defaultMode=$defaultMode"
+    fun gameListPick(gameType: String, mode: String) = "game_list/$gameType/$mode"
     fun gameQuiz(listId: Long, mode: String) = "game_quiz/$listId/$mode"
     fun gameLink(listId: Long, mode: String) = "game_link/$listId/$mode"
     fun gameSpelling(listId: Long, mode: String) = "game_spelling/$listId/$mode"

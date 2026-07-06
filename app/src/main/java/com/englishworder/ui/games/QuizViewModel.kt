@@ -81,11 +81,16 @@ class QuizViewModel @Inject constructor(
                 3
             )
             if (distractors.size < 3) return@mapNotNull null
-            val options = (distractors + word.word.gameMeaning()).shuffled()
+            val correct = word.word.gameMeaning()
+            val uniqueDistractors = distractors.filter { it != correct }.distinct()
+            if (uniqueDistractors.size < 3) return@mapNotNull null
+            val options = (uniqueDistractors.take(3) + correct).shuffled()
+            val correctIndex = options.indexOf(correct)
+            if (correctIndex < 0) return@mapNotNull null
             QuizQuestion(
                 word = word,
                 options = options,
-                correctIndex = options.indexOf(word.word.gameMeaning())
+                correctIndex = correctIndex
             )
         }
     }
@@ -136,6 +141,7 @@ class QuizViewModel @Inject constructor(
 
     fun nextQuestion() {
         val state = _state.value
+        if (!state.answered || state.finished) return
         val next = state.currentIndex + 1
 
         if (next >= state.questions.size) {

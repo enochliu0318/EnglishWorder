@@ -4,13 +4,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -88,119 +89,128 @@ fun QuizGameScreen(
                     onBack = onBack,
                     onRestart = if (state.firstPassTotal > 0) {{ viewModel.restart() }} else null
                 )
-                else -> {
-                    val question = state.questions[state.currentIndex]
-                    val word = question.word.word
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            if (state.isRetryPhase) {
-                                "${state.progressLabel} · 重练正确 ${state.retryScore}"
-                            } else {
-                                "${state.progressLabel} · 得分 ${state.score}"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (state.isRetryPhase) WrongRed else AppColors.textSecondary
-                        )
-                        AppCard {
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    word.text,
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    color = AppColors.heroGreen,
-                                    modifier = Modifier.clickable {
-                                        speaker.speak(word.text, word.audioUrl)
-                                    }
-                                )
-                                Text(
-                                    "点击单词发音",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = AppColors.textMuted,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                        }
-                        question.options.forEachIndexed { index, option ->
-                            val isSelected = state.selectedIndex == index
-                            val isCorrect = index == question.correctIndex
-                            val showResult = state.answered
-                            val showAsWrong = showResult && isSelected && !isCorrect
-                            val showAsCorrect = showResult && isCorrect
+                state.questions.isNotEmpty() -> {
+                    GameQuestionPager(
+                        pageCount = state.questions.size,
+                        currentPage = state.currentIndex,
+                        canSwipeForward = state.answered,
+                        swipeHint = choiceGameSwipeHint(
+                            currentIndex = state.currentIndex,
+                            total = state.questions.size,
+                            isRetryPhase = state.isRetryPhase,
+                            hasWrongQuestions = state.wrongQuestions.isNotEmpty()
+                        ),
+                        onSwipeForward = { viewModel.nextQuestion() }
+                    ) { page ->
+                        val question = state.questions.getOrNull(page) ?: return@GameQuestionPager
+                        val isActive = page == state.currentIndex
+                        val word = question.word.word
 
-                            OutlinedButton(
-                                onClick = { viewModel.selectOption(index) },
-                                enabled = !state.answered,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(
-                                    width = if (showAsCorrect || showAsWrong) 2.dp else 1.dp,
-                                    color = when {
-                                        showAsCorrect -> CorrectGreen
-                                        showAsWrong -> WrongRed
-                                        else -> MaterialTheme.colorScheme.outline
-                                    }
-                                ),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = when {
-                                        showAsCorrect -> CorrectBg
-                                        showAsWrong -> WrongBg
-                                        else -> MaterialTheme.colorScheme.surface
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 32.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            item {
+                                Text(
+                                    if (state.isRetryPhase) {
+                                        "${state.progressLabel} · 重练正确 ${state.retryScore}"
+                                    } else {
+                                        "${state.progressLabel} · 得分 ${state.score}"
                                     },
-                                    contentColor = when {
-                                        showAsWrong -> WrongRed
-                                        showAsCorrect -> CorrectGreen
-                                        else -> MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
-                            ) {
-                                Text(
-                                    option,
-                                    modifier = Modifier.padding(8.dp),
-                                    fontWeight = if (showAsCorrect || showAsWrong) FontWeight.Bold else FontWeight.Normal
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (state.isRetryPhase) WrongRed else AppColors.textSecondary
                                 )
                             }
-                        }
-                        if (state.answered) {
-                            val isWrong = state.selectedIndex != question.correctIndex
-                            if (isWrong) {
-                                Text(
-                                    "答错了！正确答案：${question.options[question.correctIndex]}",
-                                    color = WrongRed,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            } else {
-                                Text(
-                                    "回答正确",
-                                    color = CorrectGreen,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                            Button(
-                                onClick = { viewModel.nextQuestion() },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
-                            ) {
-                                Text(
-                                    when {
-                                        state.isRetryPhase && state.currentIndex + 1 >= state.questions.size -> "完成重练"
-                                        !state.isRetryPhase && state.currentIndex + 1 >= state.questions.size && state.wrongQuestions.isNotEmpty() -> "开始错题重练"
-                                        state.currentIndex + 1 >= state.questions.size -> "查看结果"
-                                        else -> "下一题"
+                            item {
+                                AppCard {
+                                    Column(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            word.text,
+                                            fontSize = 32.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.Center,
+                                            color = AppColors.heroGreen,
+                                            modifier = Modifier.clickable {
+                                                speaker.speak(word.text, word.audioUrl)
+                                            }
+                                        )
+                                        Text(
+                                            "点击单词发音",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AppColors.textMuted,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
                                     }
-                                )
+                                }
+                            }
+                            items(question.options.size) { index ->
+                                val option = question.options[index]
+                                val isSelected = isActive && state.selectedIndex == index
+                                val isCorrect = index == question.correctIndex
+                                val showResult = isActive && state.answered
+                                val showAsWrong = showResult && isSelected && !isCorrect
+                                val showAsCorrect = showResult && isCorrect
+
+                                OutlinedButton(
+                                    onClick = { if (isActive) viewModel.selectOption(index) },
+                                    enabled = isActive && !state.answered,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(
+                                        width = if (showAsCorrect || showAsWrong) 2.dp else 1.dp,
+                                        color = when {
+                                            showAsCorrect -> CorrectGreen
+                                            showAsWrong -> WrongRed
+                                            else -> MaterialTheme.colorScheme.outline
+                                        }
+                                    ),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = when {
+                                            showAsCorrect -> CorrectBg
+                                            showAsWrong -> WrongBg
+                                            else -> MaterialTheme.colorScheme.surface
+                                        },
+                                        contentColor = when {
+                                            showAsWrong -> WrongRed
+                                            showAsCorrect -> CorrectGreen
+                                            else -> MaterialTheme.colorScheme.onSurface
+                                        }
+                                    )
+                                ) {
+                                    Text(
+                                        option,
+                                        modifier = Modifier.padding(8.dp),
+                                        fontWeight = if (showAsCorrect || showAsWrong) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                            if (isActive && state.answered) {
+                                item {
+                                    val isWrong = state.selectedIndex != question.correctIndex
+                                    if (isWrong) {
+                                        Text(
+                                            "答错了！正确答案：${question.options[question.correctIndex]}",
+                                            color = WrongRed,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    } else {
+                                        Text(
+                                            "回答正确",
+                                            color = CorrectGreen,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -236,7 +246,7 @@ fun FinishedView(
         Text(title, style = MaterialTheme.typography.headlineSmall, color = AppColors.heroGreen)
         Text(subtitle, textAlign = TextAlign.Center)
         if (onRestart != null) {
-            Button(
+            androidx.compose.material3.Button(
                 onClick = onRestart,
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
             ) { Text("再来一局") }
