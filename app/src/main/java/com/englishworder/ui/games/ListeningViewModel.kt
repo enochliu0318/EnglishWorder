@@ -21,10 +21,9 @@ data class ListeningQuestion(
 
 data class ListeningUiState(
     val questions: List<ListeningQuestion> = emptyList(),
+    val answers: List<ChoiceAnswer> = emptyList(),
     val currentIndex: Int = 0,
     val score: Int = 0,
-    val answered: Boolean = false,
-    val selectedIndex: Int = -1,
     val finished: Boolean = false,
     val isLoading: Boolean = true,
     val listId: Long = 0,
@@ -37,12 +36,17 @@ data class ListeningUiState(
 ) {
     val updateSrs: Boolean get() = mode == ReviewMode.SCHEDULED
     val isRetryPhase: Boolean get() = phase == QuizPhase.RETRY
+    val currentAnswer: ChoiceAnswer get() = answers.getOrNull(currentIndex) ?: ChoiceAnswer()
+    val answered: Boolean get() = currentAnswer.answered
+    val selectedIndex: Int get() = currentAnswer.selectedIndex
     val progressLabel: String
         get() = if (isRetryPhase) {
             "错题重练 ${currentIndex + 1}/${questions.size}"
         } else {
             "第 ${currentIndex + 1}/${questions.size} 题"
         }
+
+    fun answerFor(index: Int): ChoiceAnswer = answers.getOrNull(index) ?: ChoiceAnswer()
 }
 
 @HiltViewModel
@@ -62,6 +66,7 @@ class ListeningViewModel @Inject constructor(
             val questions = buildQuestions(words)
             _state.value = ListeningUiState(
                 questions = questions,
+                answers = List(questions.size) { ChoiceAnswer() },
                 isLoading = false,
                 finished = questions.isEmpty(),
                 listId = listId,
@@ -101,9 +106,15 @@ class ListeningViewModel @Inject constructor(
         loadGame(s.listId, s.mode)
     }
 
+    fun goToPage(page: Int) {
+        val state = _state.value
+        if (page !in state.questions.indices) return
+        _state.value = state.copy(currentIndex = page)
+    }
+
     fun selectOption(index: Int) {
         val state = _state.value
-        if (state.answered || state.finished) return
+        if (state.finished || state.answerFor(state.currentIndex).answered) return
         val question = state.questions.getOrNull(state.currentIndex) ?: return
         val isCorrect = index == question.correctIndex
 
@@ -114,9 +125,11 @@ class ListeningViewModel @Inject constructor(
             }
         }
 
+        val newAnswers = state.answers.toMutableList()
+        newAnswers[state.currentIndex] = ChoiceAnswer(index, answered = true)
+
         _state.value = state.copy(
-            answered = true,
-            selectedIndex = index,
+            answers = newAnswers,
             score = when {
                 state.phase == QuizPhase.RETRY -> state.score
                 isCorrect -> state.score + 1
@@ -140,39 +153,30 @@ class ListeningViewModel @Inject constructor(
         )
     }
 
-    fun nextQuestion() {
+    fun advanceFromLastPage() {
         val state = _state.value
         if (!state.answered || state.finished) return
-        val next = state.currentIndex + 1
+        if (state.currentIndex != state.questions.lastIndex) return
 
-        if (next >= state.questions.size) {
-            when (state.phase) {
-                QuizPhase.MAIN -> {
-                    if (state.wrongQuestions.isNotEmpty()) {
-                        _state.value = state.copy(
-                            phase = QuizPhase.RETRY,
-                            questions = state.wrongQuestions,
-                            currentIndex = 0,
-                            answered = false,
-                            selectedIndex = -1,
-                            score = state.firstPassScore,
-                            retryScore = 0
-                        )
-                    } else {
-                        _state.value = state.copy(finished = true, phase = QuizPhase.DONE)
-                    }
-                }
-                QuizPhase.RETRY -> {
+        when (state.phase) {
+            QuizPhase.MAIN -> {
+                if (state.wrongQuestions.isNotEmpty()) {
+                    _state.value = state.copy(
+                        phase = QuizPhase.RETRY,
+                        questions = state.wrongQuestions,
+                        answers = List(state.wrongQuestions.size) { ChoiceAnswer() },
+                        currentIndex = 0,
+                        score = state.firstPassScore,
+                        retryScore = 0
+                    )
+                } else {
                     _state.value = state.copy(finished = true, phase = QuizPhase.DONE)
                 }
-                QuizPhase.DONE -> Unit
             }
-        } else {
-            _state.value = state.copy(
-                currentIndex = next,
-                answered = false,
-                selectedIndex = -1
-            )
+            QuizPhase.RETRY -> {
+                _state.value = state.copy(finished = true, phase = QuizPhase.DONE)
+            }
+            QuizPhase.DONE -> Unit
         }
     }
 

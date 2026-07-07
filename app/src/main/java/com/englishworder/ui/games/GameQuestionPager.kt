@@ -24,9 +24,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun GameQuestionPager(
     pageCount: Int,
     currentPage: Int,
-    canSwipeForward: Boolean,
-    swipeHint: String,
-    onSwipeForward: () -> Unit,
+    onPageChanged: (Int) -> Unit,
+    allowAdvanceFromLast: Boolean,
+    onAdvanceFromLast: () -> Unit,
+    swipeHint: String?,
     modifier: Modifier = Modifier,
     pageContent: @Composable (page: Int) -> Unit
 ) {
@@ -34,8 +35,7 @@ fun GameQuestionPager(
 
     val safeCurrent = currentPage.coerceIn(0, pageCount - 1)
     val isLastPage = safeCurrent == pageCount - 1
-    // 最后一题答完后增加一个占位页，否则 HorizontalPager 无法继续左滑触发下一题/错题重练
-    val trailingPage = canSwipeForward && isLastPage
+    val trailingPage = allowAdvanceFromLast && isLastPage
     val effectivePageCount = pageCount + if (trailingPage) 1 else 0
 
     val pagerState = rememberPagerState(initialPage = safeCurrent) { effectivePageCount }
@@ -46,13 +46,15 @@ fun GameQuestionPager(
         }
     }
 
-    LaunchedEffect(pagerState, safeCurrent, canSwipeForward, pageCount) {
+    LaunchedEffect(pagerState, currentPage, pageCount, allowAdvanceFromLast) {
         snapshotFlow { pagerState.settledPage }
             .distinctUntilChanged()
             .collect { settled ->
+                val target = currentPage.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
                 when {
-                    canSwipeForward && settled == safeCurrent + 1 -> onSwipeForward()
-                    settled != safeCurrent -> pagerState.scrollToPage(safeCurrent)
+                    trailingPage && settled == pageCount -> onAdvanceFromLast()
+                    settled in 0 until pageCount && settled != target -> onPageChanged(settled)
+                    settled != target && settled != pageCount -> pagerState.scrollToPage(target)
                 }
             }
     }
@@ -61,8 +63,8 @@ fun GameQuestionPager(
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = canSwipeForward,
-            beyondViewportPageCount = 0
+            userScrollEnabled = pageCount > 1 || trailingPage,
+            beyondViewportPageCount = 1
         ) { page ->
             if (page < pageCount) {
                 pageContent(page)
@@ -70,7 +72,7 @@ fun GameQuestionPager(
                 Box(Modifier.fillMaxSize())
             }
         }
-        if (canSwipeForward) {
+        if (!swipeHint.isNullOrBlank()) {
             Text(
                 swipeHint,
                 modifier = Modifier

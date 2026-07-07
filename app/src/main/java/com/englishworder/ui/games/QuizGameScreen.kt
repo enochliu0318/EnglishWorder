@@ -93,17 +93,20 @@ fun QuizGameScreen(
                     GameQuestionPager(
                         pageCount = state.questions.size,
                         currentPage = state.currentIndex,
-                        canSwipeForward = state.answered,
+                        onPageChanged = viewModel::goToPage,
+                        allowAdvanceFromLast = state.answered && state.currentIndex == state.questions.lastIndex,
+                        onAdvanceFromLast = viewModel::advanceFromLastPage,
                         swipeHint = choiceGameSwipeHint(
                             currentIndex = state.currentIndex,
                             total = state.questions.size,
                             isRetryPhase = state.isRetryPhase,
-                            hasWrongQuestions = state.wrongQuestions.isNotEmpty()
-                        ),
-                        onSwipeForward = { viewModel.nextQuestion() }
+                            hasWrongQuestions = state.wrongQuestions.isNotEmpty(),
+                            currentAnswered = state.answered
+                        )
                     ) { page ->
                         val question = state.questions.getOrNull(page) ?: return@GameQuestionPager
                         val isActive = page == state.currentIndex
+                        val pageAnswer = state.answerFor(page)
                         val word = question.word.word
 
                         LazyColumn(
@@ -151,15 +154,15 @@ fun QuizGameScreen(
                             }
                             items(question.options.size) { index ->
                                 val option = question.options[index]
-                                val isSelected = isActive && state.selectedIndex == index
+                                val isSelected = pageAnswer.selectedIndex == index
                                 val isCorrect = index == question.correctIndex
-                                val showResult = isActive && state.answered
+                                val showResult = pageAnswer.answered
                                 val showAsWrong = showResult && isSelected && !isCorrect
                                 val showAsCorrect = showResult && isCorrect
 
                                 OutlinedButton(
                                     onClick = { if (isActive) viewModel.selectOption(index) },
-                                    enabled = isActive && !state.answered,
+                                    enabled = isActive && !pageAnswer.answered,
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(
@@ -190,9 +193,9 @@ fun QuizGameScreen(
                                     )
                                 }
                             }
-                            if (isActive && state.answered) {
+                            if (pageAnswer.answered) {
                                 item {
-                                    val isWrong = state.selectedIndex != question.correctIndex
+                                    val isWrong = pageAnswer.selectedIndex != question.correctIndex
                                     if (isWrong) {
                                         Text(
                                             "答错了！正确答案：${question.options[question.correctIndex]}",
