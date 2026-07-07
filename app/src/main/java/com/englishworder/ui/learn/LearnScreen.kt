@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,9 +47,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.englishworder.domain.model.StudyMode
+import com.englishworder.domain.model.WordWithReview
 import com.englishworder.ui.components.GreenGradientBackground
 import com.englishworder.ui.components.ScreenPadding
 import com.englishworder.ui.components.rememberWordSpeaker
+import com.englishworder.ui.games.CardStudyPager
 import com.englishworder.ui.theme.AppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,70 +111,91 @@ fun LearnSessionScreen(
                         }
                         OutlinedButton(onClick = onBack) { Text("返回") }
                     }
-                    else -> {
-                        val current = state.current ?: return@ScreenPadding
+                    state.words.isNotEmpty() -> {
                         Column(
                             modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            FlipCard(
-                                flipped = state.cardFlipped,
-                                onFlip = { viewModel.flipCard() },
-                                front = {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.padding(28.dp)
-                                    ) {
-                                        Text("点击卡片查看释义", style = MaterialTheme.typography.labelMedium,
-                                            color = AppColors.textMuted)
-                                        Spacer(Modifier.height(16.dp))
-                                        Text(current.word.text, fontSize = 40.sp, fontWeight = FontWeight.Bold,
-                                            color = AppColors.heroGreen, textAlign = TextAlign.Center)
-                                        if (current.word.phonetic.isNotBlank()) {
-                                            Text(current.word.phonetic, style = MaterialTheme.typography.titleMedium,
-                                                color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 8.dp))
-                                        }
-                                        IconButton(onClick = {
-                                            speaker.speak(current.word.text, current.word.audioUrl)
-                                        }) {
-                                            Icon(Icons.Default.VolumeUp, contentDescription = "发音", tint = AppColors.heroGreen)
-                                        }
-                                    }
-                                },
-                                back = {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.padding(28.dp)
-                                    ) {
-                                        Text("释义", style = MaterialTheme.typography.labelMedium)
-                                        Spacer(Modifier.height(12.dp))
-                                        if (current.word.partOfSpeech.isNotBlank()) {
-                                            Text(
-                                                current.word.partOfSpeech,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = AppColors.textMuted
-                                            )
-                                            Spacer(Modifier.height(4.dp))
-                                        }
-                                        Text(current.word.meaning, fontSize = 22.sp, fontWeight = FontWeight.Medium,
-                                            textAlign = TextAlign.Center, lineHeight = 32.sp, color = AppColors.textPrimary)
-                                        if (current.word.example.isNotBlank()) {
-                                            Spacer(Modifier.height(16.dp))
-                                            Text("例句", style = MaterialTheme.typography.labelSmall, color = AppColors.textMuted)
-                                            Text(current.word.example, style = MaterialTheme.typography.bodyMedium,
-                                                textAlign = TextAlign.Center, color = AppColors.textSecondary,
-                                                modifier = Modifier.padding(top = 4.dp))
-                                        }
-                                    }
+                            CardStudyPager(
+                                pageCount = state.words.size,
+                                currentPage = state.currentIndex,
+                                onPageChanged = { viewModel.goToIndex(it) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            ) { page ->
+                                val item = state.words[page]
+                                val isActive = page == state.currentIndex
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    WordFlipCard(
+                                        item = item,
+                                        flipped = isActive && state.cardFlipped,
+                                        onFlip = { if (isActive) viewModel.flipCard() },
+                                        onSpeak = { speaker.speak(item.word.text, item.word.audioUrl) }
+                                    )
                                 }
+                            }
+
+                            Text(
+                                "左右滑动切换单词",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = AppColors.heroGreen,
+                                modifier = Modifier.padding(vertical = 8.dp)
                             )
-                            Spacer(Modifier.height(32.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { viewModel.previousCard() },
+                                    enabled = state.currentIndex > 0
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                        contentDescription = "上一个",
+                                        tint = if (state.currentIndex > 0) AppColors.heroGreen else AppColors.textMuted
+                                    )
+                                }
+                                Text(
+                                    state.progress,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppColors.heroGreen
+                                )
+                                IconButton(
+                                    onClick = { viewModel.nextCard() },
+                                    enabled = state.currentIndex < state.words.size - 1
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = "下一个",
+                                        tint = if (state.currentIndex < state.words.size - 1) {
+                                            AppColors.heroGreen
+                                        } else {
+                                            AppColors.textMuted
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+
                             if (mode == StudyMode.NEW_WORDS) {
-                                Text("认识和不认识都会加入复习计划", style = MaterialTheme.typography.bodySmall,
-                                    color = AppColors.textMuted)
-                                Spacer(Modifier.height(12.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    "认识和不认识都会加入复习计划",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppColors.textMuted
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
                                     Button(
                                         onClick = { viewModel.answer(known = false) },
                                         modifier = Modifier.weight(1f),
@@ -183,11 +208,21 @@ fun LearnSessionScreen(
                                     ) { Text("认识") }
                                 }
                             } else {
-                                Button(
-                                    onClick = { viewModel.answer(known = true) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
-                                ) { Text("下一个") }
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    OutlinedButton(
+                                        onClick = onBack,
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text("完成") }
+                                    Button(
+                                        onClick = { viewModel.nextCard() },
+                                        modifier = Modifier.weight(1f),
+                                        enabled = state.currentIndex < state.words.size - 1,
+                                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
+                                    ) { Text("下一个") }
+                                }
                             }
                         }
                     }
@@ -195,6 +230,86 @@ fun LearnSessionScreen(
             }
         }
     }
+}
+
+@Composable
+private fun WordFlipCard(
+    item: WordWithReview,
+    flipped: Boolean,
+    onFlip: () -> Unit,
+    onSpeak: () -> Unit
+) {
+    FlipCard(
+        flipped = flipped,
+        onFlip = onFlip,
+        front = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(28.dp)
+            ) {
+                Text(
+                    "点击卡片查看释义",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = AppColors.textMuted
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    item.word.text,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.heroGreen,
+                    textAlign = TextAlign.Center
+                )
+                if (item.word.phonetic.isNotBlank()) {
+                    Text(
+                        item.word.phonetic,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+                IconButton(onClick = onSpeak) {
+                    Icon(Icons.Default.VolumeUp, contentDescription = "发音", tint = AppColors.heroGreen)
+                }
+            }
+        },
+        back = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(28.dp)
+            ) {
+                Text("释义", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(12.dp))
+                if (item.word.partOfSpeech.isNotBlank()) {
+                    Text(
+                        item.word.partOfSpeech,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AppColors.textMuted
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
+                Text(
+                    item.word.meaning,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 32.sp,
+                    color = AppColors.textPrimary
+                )
+                if (item.word.example.isNotBlank()) {
+                    Spacer(Modifier.height(16.dp))
+                    Text("例句", style = MaterialTheme.typography.labelSmall, color = AppColors.textMuted)
+                    Text(
+                        item.word.example,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = AppColors.textSecondary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+    )
 }
 
 @Composable

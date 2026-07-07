@@ -61,6 +61,20 @@ class LearnViewModel @Inject constructor(
         _state.value = _state.value.copy(cardFlipped = !_state.value.cardFlipped)
     }
 
+    fun goToIndex(index: Int) {
+        val state = _state.value
+        if (index !in state.words.indices) return
+        _state.value = state.copy(currentIndex = index, cardFlipped = false)
+    }
+
+    fun previousCard() {
+        goToIndex(_state.value.currentIndex - 1)
+    }
+
+    fun nextCard() {
+        goToIndex(_state.value.currentIndex + 1)
+    }
+
     fun answer(known: Boolean) {
         val current = _state.value.current ?: return
         viewModelScope.launch {
@@ -72,11 +86,14 @@ class LearnViewModel @Inject constructor(
     }
 
     private fun advance() {
-        val nextIndex = _state.value.currentIndex + 1
-        if (nextIndex >= _state.value.words.size) {
-            _state.value = _state.value.copy(finished = true)
+        val state = _state.value
+        val nextIndex = state.currentIndex + 1
+        if (nextIndex >= state.words.size) {
+            if (state.mode == StudyMode.NEW_WORDS) {
+                _state.value = state.copy(finished = true)
+            }
         } else {
-            _state.value = _state.value.copy(currentIndex = nextIndex, cardFlipped = false)
+            _state.value = state.copy(currentIndex = nextIndex, cardFlipped = false)
         }
     }
 }

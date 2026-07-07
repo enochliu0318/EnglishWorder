@@ -33,20 +33,25 @@ fun GameQuestionPager(
     if (pageCount == 0) return
 
     val safeCurrent = currentPage.coerceIn(0, pageCount - 1)
-    val pagerState = rememberPagerState(initialPage = safeCurrent) { pageCount }
+    val isLastPage = safeCurrent == pageCount - 1
+    // 最后一题答完后增加一个占位页，否则 HorizontalPager 无法继续左滑触发下一题/错题重练
+    val trailingPage = canSwipeForward && isLastPage
+    val effectivePageCount = pageCount + if (trailingPage) 1 else 0
 
-    LaunchedEffect(safeCurrent, pageCount) {
+    val pagerState = rememberPagerState(initialPage = safeCurrent) { effectivePageCount }
+
+    LaunchedEffect(safeCurrent, pageCount, effectivePageCount) {
         if (pagerState.currentPage != safeCurrent) {
             pagerState.scrollToPage(safeCurrent)
         }
     }
 
-    LaunchedEffect(pagerState, safeCurrent, canSwipeForward) {
+    LaunchedEffect(pagerState, safeCurrent, canSwipeForward, pageCount) {
         snapshotFlow { pagerState.settledPage }
             .distinctUntilChanged()
             .collect { settled ->
                 when {
-                    settled == safeCurrent + 1 && canSwipeForward -> onSwipeForward()
+                    canSwipeForward && settled == safeCurrent + 1 -> onSwipeForward()
                     settled != safeCurrent -> pagerState.scrollToPage(safeCurrent)
                 }
             }
@@ -59,7 +64,11 @@ fun GameQuestionPager(
             userScrollEnabled = canSwipeForward,
             beyondViewportPageCount = 0
         ) { page ->
-            pageContent(page)
+            if (page < pageCount) {
+                pageContent(page)
+            } else {
+                Box(Modifier.fillMaxSize())
+            }
         }
         if (canSwipeForward) {
             Text(
@@ -73,5 +82,47 @@ fun GameQuestionPager(
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CardStudyPager(
+    pageCount: Int,
+    currentPage: Int,
+    onPageChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    pageContent: @Composable (page: Int) -> Unit
+) {
+    if (pageCount == 0) return
+
+    val safeCurrent = currentPage.coerceIn(0, pageCount - 1)
+    val pagerState = rememberPagerState(initialPage = safeCurrent) { pageCount }
+
+    LaunchedEffect(safeCurrent, pageCount) {
+        if (pagerState.currentPage != safeCurrent) {
+            pagerState.scrollToPage(safeCurrent)
+        }
+    }
+
+    LaunchedEffect(pagerState, currentPage, pageCount) {
+        snapshotFlow { pagerState.settledPage }
+            .distinctUntilChanged()
+            .collect { settled ->
+                val target = currentPage.coerceIn(0, (pageCount - 1).coerceAtLeast(0))
+                when {
+                    settled in 0 until pageCount && settled != target -> onPageChanged(settled)
+                    settled != target -> pagerState.scrollToPage(target)
+                }
+            }
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        modifier = modifier.fillMaxSize(),
+        userScrollEnabled = pageCount > 1,
+        beyondViewportPageCount = 1
+    ) { page ->
+        pageContent(page)
     }
 }
