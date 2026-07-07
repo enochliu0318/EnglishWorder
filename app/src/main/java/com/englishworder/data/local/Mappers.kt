@@ -16,6 +16,7 @@ fun WordListEntity.toDomain(wordCount: Int = 0) = WordList(
     id = id,
     name = name,
     description = description,
+    packId = packId,
     createdAt = createdAt,
     wordCount = wordCount
 )

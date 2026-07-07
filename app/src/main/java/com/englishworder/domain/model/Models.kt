@@ -19,6 +19,7 @@ data class WordList(
     val id: Long = 0,
     val name: String,
     val description: String = "",
+    val packId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val wordCount: Int = 0
 )

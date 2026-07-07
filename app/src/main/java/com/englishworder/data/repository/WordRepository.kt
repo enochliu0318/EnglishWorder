@@ -43,6 +43,7 @@ class WordRepository @Inject constructor(
                     id = entity.id,
                     name = entity.name,
                     description = entity.description,
+                    packId = entity.packId,
                     createdAt = entity.createdAt,
                     wordCount = entity.wordCount
                 )
@@ -55,13 +56,23 @@ class WordRepository @Inject constructor(
         return entity.toDomain(wordDao.countByListId(id))
     }
 
-    suspend fun createWordList(name: String, description: String = ""): Long {
+    suspend fun createWordList(name: String, description: String = "", packId: String? = null): Long {
         return wordListDao.insert(
             com.englishworder.data.local.entity.WordListEntity(
                 name = name.trim(),
-                description = description.trim()
+                description = description.trim(),
+                packId = packId
             )
         )
+    }
+
+    suspend fun getWordListByPackId(packId: String): WordList? {
+        val entity = wordListDao.getByPackId(packId) ?: return null
+        return entity.toDomain(wordDao.countByListId(entity.id))
+    }
+
+    fun observeInstalledPackIds(): Flow<Set<String>> {
+        return wordListDao.observeInstalledPackIds().map { it.toSet() }
     }
 
     suspend fun updateWordList(id: Long, name: String, description: String) {

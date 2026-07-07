@@ -2,7 +2,9 @@ package com.englishworder.ui.wordlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.englishworder.data.repository.WordPackRepository
 import com.englishworder.data.repository.WordRepository
+import com.englishworder.domain.model.WordPack
 import com.englishworder.domain.model.Word
 import com.englishworder.domain.model.WordList
 import com.englishworder.domain.model.WordWithReview
@@ -20,14 +22,34 @@ import javax.inject.Inject
 
 @HiltViewModel
 class WordListViewModel @Inject constructor(
-    private val repository: WordRepository
+    private val repository: WordRepository,
+    private val packRepository: WordPackRepository
 ) : ViewModel() {
 
     val wordLists: StateFlow<List<WordList>> = repository.observeWordLists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val wordPacks: List<WordPack> = packRepository.availablePacks()
+
+    val installedPackIds: StateFlow<Set<String>> = packRepository.observeInstalledPackIds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    private val _installingPackId = MutableStateFlow<String?>(null)
+    val installingPackId: StateFlow<String?> = _installingPackId.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    fun installPack(packId: String) {
+        if (_installingPackId.value != null) return
+        viewModelScope.launch {
+            _installingPackId.value = packId
+            packRepository.installPack(packId)
+                .onSuccess { _message.value = "词库已添加，可以开始学习了" }
+                .onFailure { _message.value = it.message ?: "添加失败" }
+            _installingPackId.value = null
+        }
+    }
 
     fun createWordList(name: String, description: String) {
         if (name.isBlank()) {

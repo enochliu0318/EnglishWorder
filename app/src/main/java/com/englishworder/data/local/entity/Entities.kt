@@ -7,11 +7,15 @@ import androidx.room.PrimaryKey
 import com.englishworder.domain.model.FetchStatus
 import com.englishworder.domain.model.ReviewStatus
 
-@Entity(tableName = "word_lists")
+@Entity(
+    tableName = "word_lists",
+    indices = [Index(value = ["packId"], unique = true)]
+)
 data class WordListEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val description: String = "",
+    val packId: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
 
@@ -19,6 +23,7 @@ data class WordListWithCountEntity(
     val id: Long,
     val name: String,
     val description: String,
+    val packId: String?,
     val createdAt: Long,
     val wordCount: Int
 )

@@ -41,13 +41,20 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE word_lists ADD COLUMN packId TEXT DEFAULT NULL")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_word_lists_packId ON word_lists(packId)")
+    }
+}
+
 @Database(
     entities = [
         WordListEntity::class,
         WordEntity::class,
         ReviewRecordEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

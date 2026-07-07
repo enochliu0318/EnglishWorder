@@ -20,7 +20,7 @@ interface WordListDao {
 
     @Query(
         """
-        SELECT wl.id, wl.name, wl.description, wl.createdAt, COUNT(w.id) AS wordCount
+        SELECT wl.id, wl.name, wl.description, wl.packId, wl.createdAt, COUNT(w.id) AS wordCount
         FROM word_lists wl
         LEFT JOIN words w ON wl.id = w.listId
         GROUP BY wl.id
@@ -31,6 +31,12 @@ interface WordListDao {
 
     @Query("SELECT * FROM word_lists WHERE id = :id")
     suspend fun getById(id: Long): WordListEntity?
+
+    @Query("SELECT * FROM word_lists WHERE packId = :packId LIMIT 1")
+    suspend fun getByPackId(packId: String): WordListEntity?
+
+    @Query("SELECT packId FROM word_lists WHERE packId IS NOT NULL")
+    fun observeInstalledPackIds(): Flow<List<String>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: WordListEntity): Long

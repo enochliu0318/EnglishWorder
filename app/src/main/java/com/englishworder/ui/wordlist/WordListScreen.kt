@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Upload
@@ -61,6 +63,8 @@ fun WordListScreen(
     viewModel: WordListViewModel = hiltViewModel()
 ) {
     val wordLists by viewModel.wordLists.collectAsState()
+    val installedPackIds by viewModel.installedPackIds.collectAsState()
+    val installingPackId by viewModel.installingPackId.collectAsState()
     val message by viewModel.message.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<WordList?>(null) }
@@ -104,11 +108,42 @@ fun WordListScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    Text(
+                        "官方词库",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.heroGreen
+                    )
+                    Text(
+                        "内置词包，点击添加到你的词库",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppColors.textMuted,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                    )
+                }
+                items(viewModel.wordPacks, key = { it.id }) { pack ->
+                    WordPackItem(
+                        pack = pack,
+                        installed = pack.id in installedPackIds,
+                        installing = installingPackId == pack.id,
+                        onInstall = { viewModel.installPack(pack.id) }
+                    )
+                }
+                item {
+                    Text(
+                        "我的词库",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.heroGreen,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
                 if (wordLists.isEmpty()) {
                     item {
                         AppCard {
                             Column(Modifier.padding(20.dp)) {
-                                Text("还没有词库")
+                                Text("还没有自定义词库")
                                 Text("点击右下角 + 创建，或使用右上角导入", style = MaterialTheme.typography.bodySmall)
                             }
                         }
@@ -174,6 +209,49 @@ fun WordListScreen(
 }
 
 @Composable
+private fun WordPackItem(
+    pack: com.englishworder.domain.model.WordPack,
+    installed: Boolean,
+    installing: Boolean,
+    onInstall: () -> Unit
+) {
+    AppCard(onClick = if (!installed && !installing) onInstall else null) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(pack.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppColors.heroGreen)
+                Text(pack.description, style = MaterialTheme.typography.bodyMedium)
+                Text("约 ${pack.wordCount} 个单词", style = MaterialTheme.typography.bodySmall, color = AppColors.textMuted)
+            }
+            when {
+                installing -> CircularProgressIndicator(
+                    modifier = Modifier.padding(8.dp),
+                    color = AppColors.heroGreen,
+                    strokeWidth = 2.dp
+                )
+                installed -> Icon(
+                    Icons.Default.Check,
+                    contentDescription = "已添加",
+                    tint = AppColors.heroGreen,
+                    modifier = Modifier.padding(8.dp)
+                )
+                else -> Icon(
+                    Icons.Default.CloudDownload,
+                    contentDescription = "添加词库",
+                    tint = AppColors.heroGreen,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun WordListItem(
     wordList: WordList,
     onOpenList: () -> Unit,
@@ -191,7 +269,17 @@ private fun WordListItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(wordList.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppColors.heroGreen)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(wordList.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppColors.heroGreen)
+                        if (wordList.packId != null) {
+                            Text(
+                                "官方",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AppColors.heroGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                     if (wordList.description.isNotBlank()) {
                         Text(wordList.description, style = MaterialTheme.typography.bodyMedium)
                     }
