@@ -111,7 +111,7 @@ fun LinkMatchGameScreen(
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                "英文单词可点击发音 · 选中卡片会高亮显示",
+                                "英文单词可点击发音",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AppColors.textMuted
                             )
@@ -180,7 +180,7 @@ private fun LinkTileCard(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    if (selected) "已选中" else if (tile.type == TileType.WORD) "单词" else "释义",
+                    if (tile.type == TileType.WORD) "单词" else "释义",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                     color = if (selected) SelectedBorder else if (tile.type == TileType.WORD) AppColors.heroGreen else AppColors.textMuted
