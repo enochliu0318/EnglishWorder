@@ -61,7 +61,7 @@ class ListeningViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ListeningUiState(isLoading = true, listId = listId, mode = mode)
             val words = repository.getWordsForGame(listId, mode, 10)
-                .filter { it.word.text.isNotBlank() }
+                .filter { it.word.text.isNotBlank() && it.word.meaning.isNotBlank() }
 
             val questions = buildQuestions(words)
             _state.value = ListeningUiState(
@@ -78,20 +78,19 @@ class ListeningViewModel @Inject constructor(
 
     private suspend fun buildQuestions(words: List<WordWithReview>): List<ListeningQuestion> {
         return words.mapNotNull { item ->
-            val distractors = repository.getDistractorWords(
+            val distractors = repository.getDistractorMeanings(
                 item.word.listId,
                 item.word.id,
                 3
             )
             if (distractors.size < 3) return@mapNotNull null
-            val correct = item.word.text.trim()
+            val correct = item.word.gameMeaning()
             val uniqueDistractors = distractors
-                .map { it.trim() }
-                .filter { !it.equals(correct, ignoreCase = true) }
+                .filter { it != correct }
                 .distinct()
             if (uniqueDistractors.size < 3) return@mapNotNull null
             val options = (uniqueDistractors.take(3) + correct).shuffled()
-            val correctIndex = options.indexOfFirst { it.equals(correct, ignoreCase = true) }
+            val correctIndex = options.indexOf(correct)
             if (correctIndex < 0) return@mapNotNull null
             ListeningQuestion(
                 word = item,

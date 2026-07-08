@@ -168,7 +168,7 @@ fun ListeningGameScreen(
                             }
                             item {
                                 Text(
-                                    "选择听到的单词",
+                                    "选择听到的中文释义",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = AppColors.heroGreen,

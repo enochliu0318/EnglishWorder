@@ -91,7 +91,7 @@ fun ReviewHubScreen(
                 GameModeCard(title = "拼写", description = "看中文释义拼单词", onClick = { onSetupGame("spelling") })
             }
             item {
-                GameModeCard(title = "听力练习", description = "听发音辨单词，不显示题目", onClick = { onSetupGame("listening") })
+                GameModeCard(title = "听力练习", description = "听发音选中文释义", onClick = { onSetupGame("listening") })
             }
         }
     }

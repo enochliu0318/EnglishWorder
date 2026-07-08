@@ -162,9 +162,12 @@ class WordRepository @Inject constructor(
                 return@forEach
             }
 
-            val hasFullInfo = !entry.meaning.isNullOrBlank()
+            val hasImportedContent = !entry.meaning.isNullOrBlank() ||
+                !entry.example.isNullOrBlank() ||
+                !entry.phonetic.isNullOrBlank() ||
+                !entry.partOfSpeech.isNullOrBlank()
             val fullMeaning = MeaningFormatter.forLearning(entry.meaning.orEmpty())
-            val short = MeaningFormatter.short(entry.meaning.orEmpty())
+            val short = if (entry.meaning.isNullOrBlank()) "" else MeaningFormatter.short(entry.meaning.orEmpty())
             val wordId = wordDao.insert(
                 Word(
                     listId = listId,
@@ -174,7 +177,7 @@ class WordRepository @Inject constructor(
                     shortMeaning = short,
                     example = entry.example.orEmpty(),
                     partOfSpeech = entry.partOfSpeech.orEmpty(),
-                    fetchStatus = if (hasFullInfo) FetchStatus.OK else FetchStatus.PENDING
+                    fetchStatus = if (!entry.meaning.isNullOrBlank()) FetchStatus.OK else FetchStatus.PENDING
                 ).toEntity()
             )
 
@@ -183,7 +186,7 @@ class WordRepository @Inject constructor(
             } else {
                 imported++
                 reviewRecordDao.insert(EbbinghausScheduler.createInitialRecord(wordId).toEntity())
-                if (!hasFullInfo) pendingFetch++
+                if (!hasImportedContent) pendingFetch++
             }
         }
 
@@ -210,12 +213,13 @@ class WordRepository @Inject constructor(
         }
         return existing.copy(
             phonetic = entry.phonetic?.trim()?.takeIf { it.isNotBlank() } ?: existing.phonetic,
-            meaning = mergedMeaning,
+            meaning = importedMeaning ?: existing.meaning,
             shortMeaning = mergedShort,
             example = entry.example?.trim()?.takeIf { it.isNotBlank() } ?: existing.example,
             partOfSpeech = entry.partOfSpeech?.trim()?.takeIf { it.isNotBlank() } ?: existing.partOfSpeech,
             fetchStatus = when {
                 mergedMeaning.isNotBlank() -> FetchStatus.OK
+                existing.meaning.isNotBlank() -> FetchStatus.OK
                 existing.fetchStatus == FetchStatus.OK -> FetchStatus.OK
                 else -> FetchStatus.PENDING
             }
@@ -256,14 +260,17 @@ class WordRepository @Inject constructor(
         val word = wordDao.getById(wordId) ?: return false
         return dictionaryProvider.lookup(word.text)
             .onSuccess { info ->
+                val mergedMeaning = pickField(word.meaning, info.meaning, force)
                 wordDao.update(
                     word.copy(
                         phonetic = pickField(word.phonetic, info.phonetic, force),
-                        meaning = pickField(word.meaning, info.meaning, force),
+                        meaning = mergedMeaning,
                         shortMeaning = if (!force && word.meaning.isNotBlank()) {
                             word.shortMeaning
+                        } else if (mergedMeaning.isNotBlank()) {
+                            info.shortMeaning.ifBlank { MeaningFormatter.short(mergedMeaning) }
                         } else {
-                            info.shortMeaning.ifBlank { MeaningFormatter.short(info.meaning) }
+                            word.shortMeaning
                         },
                         example = pickField(word.example, info.example, force),
                         partOfSpeech = pickField(word.partOfSpeech, info.partOfSpeech, force),

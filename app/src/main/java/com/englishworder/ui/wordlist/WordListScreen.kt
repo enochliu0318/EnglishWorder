@@ -69,6 +69,7 @@ fun WordListScreen(
     val message by viewModel.message.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<WordList?>(null) }
+    var deleteTarget by remember { mutableStateOf<WordList?>(null) }
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -160,7 +161,7 @@ fun WordListScreen(
                                 name = list.name
                                 description = list.description
                             },
-                            onDelete = { viewModel.deleteWordList(list.id) }
+                            onDelete = { deleteTarget = list }
                         )
                     }
                 }
@@ -205,6 +206,23 @@ fun WordListScreen(
                 }) { Text("保存") }
             },
             dismissButton = { TextButton(onClick = { renameTarget = null }) { Text("取消") } }
+        )
+    }
+
+    deleteTarget?.let { list ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("删除词库") },
+            text = {
+                Text("确定要删除「${list.name}」吗？词库中的 ${list.wordCount} 个单词将一并删除，此操作无法撤销。")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteWordList(list.id)
+                    deleteTarget = null
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("取消") } }
         )
     }
 }

@@ -137,7 +137,8 @@ fun ImportScreen(
                             Text("格式说明", fontWeight = FontWeight.Bold)
                             Text("• CSV / Excel，第一列为单词")
                             Text("• 可选列：音标、词性、释义、例句")
-                            Text("• 导入的释义/例句/词性优先于自动补全")
+                            Text("• 导入的释义、例句、词性优先于自动补全")
+                            Text("• 表格没有的字段才会自动查词典补全")
                             Text("• 只填单词时自动补全中文释义和音标")
                         }
                     }
