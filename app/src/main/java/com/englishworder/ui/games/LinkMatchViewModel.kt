@@ -3,7 +3,7 @@ package com.englishworder.ui.games
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.englishworder.data.repository.WordRepository
-import com.englishworder.domain.model.ReviewMode
+import com.englishworder.domain.model.StudyFilter
 import com.englishworder.domain.srs.EbbinghausScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,13 +47,11 @@ data class LinkMatchUiState(
     val isLoading: Boolean = true,
     val message: String? = null,
     val listId: Long = 0,
-    val mode: ReviewMode = ReviewMode.FREE_PRACTICE,
     val phase: QuizPhase = QuizPhase.MAIN,
     val wrongPairIds: Set<Int> = emptySet(),
     val firstPassWrongCount: Int = 0,
     val retryScore: Int = 0
 ) {
-    val updateSrs: Boolean get() = mode == ReviewMode.SCHEDULED
     val isRetryPhase: Boolean get() = phase == QuizPhase.RETRY
     val currentRound: LinkRoundState? get() = rounds.getOrNull(currentPage)
     val allRoundsComplete: Boolean get() = rounds.isNotEmpty() && rounds.all { it.isComplete }
@@ -77,19 +75,18 @@ class LinkMatchViewModel @Inject constructor(
         private const val PAIRS_PER_ROUND = 3
     }
 
-    fun loadGame(listId: Long, mode: ReviewMode) {
+    fun loadGame(listId: Long) {
         viewModelScope.launch {
-            _state.value = LinkMatchUiState(isLoading = true, listId = listId, mode = mode)
-            val words = repository.getWordsForGame(listId, mode, 6)
+            _state.value = LinkMatchUiState(isLoading = true, listId = listId)
+            val words = repository.getWordsForSession(listId, StudyFilter.ALL, 6)
                 .filter { it.word.meaning.isNotBlank() }
 
             if (words.size < 3) {
                 _state.value = LinkMatchUiState(
                     finished = true,
                     isLoading = false,
-                    message = if (mode == ReviewMode.SCHEDULED) "暂无待复习单词，试试自由练习" else "单词不足",
-                    listId = listId,
-                    mode = mode
+                    message = "词库单词不足",
+                    listId = listId
                 )
                 return@launch
             }
@@ -108,15 +105,13 @@ class LinkMatchViewModel @Inject constructor(
                 rounds = buildRounds(pairInfos),
                 pairInfos = pairInfos,
                 isLoading = false,
-                listId = listId,
-                mode = mode
+                listId = listId
             )
         }
     }
 
     fun restart() {
-        val s = _state.value
-        loadGame(s.listId, s.mode)
+        loadGame(_state.value.listId)
     }
 
     fun goToPage(page: Int) {
@@ -154,8 +149,7 @@ class LinkMatchViewModel @Inject constructor(
                 viewModelScope.launch {
                     repository.recordReviewResult(
                         pairInfo.wordId,
-                        EbbinghausScheduler.qualityFromCorrect(true),
-                        state.updateSrs
+                        EbbinghausScheduler.qualityFromCorrect(true)
                     )
                 }
             }
@@ -179,14 +173,13 @@ class LinkMatchViewModel @Inject constructor(
             } else {
                 state.wrongPairIds
             }
-            if (state.phase == QuizPhase.MAIN && state.updateSrs) {
+            if (state.phase == QuizPhase.MAIN) {
                 val pairInfo = state.pairInfos.find { it.pairId == first.pairId }
                 if (pairInfo != null) {
                     viewModelScope.launch {
                         repository.recordReviewResult(
                             pairInfo.wordId,
-                            EbbinghausScheduler.qualityFromCorrect(false),
-                            true
+                            EbbinghausScheduler.qualityFromCorrect(false)
                         )
                     }
                 }

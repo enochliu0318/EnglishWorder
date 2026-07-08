@@ -131,6 +131,42 @@ interface ReviewRecordDao {
 
     @Query(
         """
+        SELECT w.*, r.easeFactor, r.interval, r.repetitions, r.nextReviewAt, r.lastReviewAt, r.status
+        FROM words w
+        INNER JOIN review_records r ON w.id = r.wordId
+        WHERE w.listId = :listId
+            AND r.nextReviewAt <= :beforeTime
+            AND r.status != 'MASTERED'
+        ORDER BY r.nextReviewAt ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getDueReviewsForList(listId: Long, beforeTime: Long, limit: Int): List<WordWithReviewEntity>
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM words w
+        INNER JOIN review_records r ON w.id = r.wordId
+        WHERE w.listId = :listId
+            AND r.nextReviewAt <= :beforeTime
+            AND r.status != 'MASTERED'
+        """
+    )
+    suspend fun countDueForList(listId: Long, beforeTime: Long): Int
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM words w
+        INNER JOIN review_records r ON w.id = r.wordId
+        WHERE w.listId = :listId AND r.status = 'NEW'
+        """
+    )
+    suspend fun countNewForList(listId: Long): Int
+
+    @Query(
+        """
         SELECT COUNT(*)
         FROM review_records
         WHERE nextReviewAt <= :beforeTime AND status != 'MASTERED'

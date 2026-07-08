@@ -41,11 +41,9 @@ import com.englishworder.ui.games.QuizGameScreen
 import com.englishworder.ui.games.SpellingGameScreen
 import com.englishworder.ui.learn.LearnSessionScreen
 import com.englishworder.ui.navigation.Routes
-import com.englishworder.domain.model.ReviewMode
-import com.englishworder.domain.model.StudyMode
+import com.englishworder.domain.model.StudyFilter
 import com.englishworder.ui.progress.ProgressScreen
 import com.englishworder.ui.review.GameListSelectScreen
-import com.englishworder.ui.review.GameModeSelectScreen
 import com.englishworder.ui.review.ReviewHubScreen
 import com.englishworder.ui.splash.SplashScreen
 import com.englishworder.ui.theme.EnglishWorderTheme
@@ -164,8 +162,8 @@ private fun MainNavHost() {
                 WordListScreen(
                     onOpenList = { navController.navigate(Routes.wordListDetail(it)) },
                     onImport = { navController.navigate(Routes.importGlobal()) },
-                    onStartLearn = { listId, mode ->
-                        navController.navigate(Routes.learnSession(listId, mode.name.lowercase()))
+                    onStartLearn = { listId ->
+                        navController.navigate(Routes.learnSession(listId))
                     }
                 )
             }
@@ -195,9 +193,11 @@ private fun MainNavHost() {
             }
             composable(Routes.PROGRESS) {
                 ProgressScreen(
-                    onStartReview = { navController.navigate(Routes.gameMode("quiz", "scheduled")) },
+                    onStartReview = { listId ->
+                        navController.navigate(Routes.learnSession(listId, "plan"))
+                    },
                     onStartLearn = { listId ->
-                        navController.navigate(Routes.learnSession(listId, StudyMode.NEW_WORDS.name.lowercase()))
+                        navController.navigate(Routes.learnSession(listId))
                     }
                 )
             }
@@ -205,63 +205,42 @@ private fun MainNavHost() {
                 route = Routes.LEARN_SESSION,
                 arguments = listOf(
                     navArgument("listId") { type = NavType.LongType },
-                    navArgument("mode") { type = NavType.StringType }
+                    navArgument("filter") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                        nullable = true
+                    }
                 )
             ) { entry ->
                 val listId = entry.arguments?.getLong("listId") ?: return@composable
-                val mode = parseStudyMode(entry.arguments?.getString("mode"))
+                val filterArg = entry.arguments?.getString("filter")
+                val filter = filterArg?.takeIf { it.isNotBlank() }?.let { StudyFilter.fromString(it) }
                 LearnSessionScreen(
                     listId = listId,
-                    mode = mode,
+                    initialFilter = filter,
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(Routes.REVIEW) {
                 ReviewHubScreen(
                     onSetupGame = { gameType ->
-                        navController.navigate(Routes.gameMode(gameType))
+                        navController.navigate(Routes.gameListPick(gameType))
                     }
-                )
-            }
-            composable(
-                route = Routes.GAME_MODE,
-                arguments = listOf(
-                    navArgument("gameType") { type = NavType.StringType },
-                    navArgument("defaultMode") {
-                        type = NavType.StringType
-                        defaultValue = "free_practice"
-                    }
-                )
-            ) { entry ->
-                val gameType = entry.arguments?.getString("gameType") ?: return@composable
-                val defaultMode = parseReviewMode(entry.arguments?.getString("defaultMode"))
-                GameModeSelectScreen(
-                    gameType = gameType,
-                    initialMode = defaultMode,
-                    onModeSelected = { mode ->
-                        navController.navigate(Routes.gameListPick(gameType, mode.name.lowercase()))
-                    },
-                    onBack = { navController.popBackStack() }
                 )
             }
             composable(
                 route = Routes.GAME_LIST_PICK,
-                arguments = listOf(
-                    navArgument("gameType") { type = NavType.StringType },
-                    navArgument("mode") { type = NavType.StringType }
-                )
+                arguments = listOf(navArgument("gameType") { type = NavType.StringType })
             ) { entry ->
                 val gameType = entry.arguments?.getString("gameType") ?: return@composable
-                val mode = parseReviewMode(entry.arguments?.getString("mode"))
                 GameListSelectScreen(
                     gameType = gameType,
-                    mode = mode,
                     onStart = { listId ->
                         val route = when (gameType) {
-                            "quiz" -> Routes.gameQuiz(listId, mode.name.lowercase())
-                            "link" -> Routes.gameLink(listId, mode.name.lowercase())
-                            "spelling" -> Routes.gameSpelling(listId, mode.name.lowercase())
-                            "listening" -> Routes.gameListening(listId, mode.name.lowercase())
+                            "quiz" -> Routes.gameQuiz(listId)
+                            "link" -> Routes.gameLink(listId)
+                            "spelling" -> Routes.gameSpelling(listId)
+                            "listening" -> Routes.gameListening(listId)
                             else -> return@GameListSelectScreen
                         }
                         navController.navigate(route)
@@ -271,41 +250,37 @@ private fun MainNavHost() {
             }
             composable(
                 route = Routes.GAME_QUIZ,
-                arguments = gameNavArgs()
+                arguments = listOf(navArgument("listId") { type = NavType.LongType })
             ) { entry ->
                 QuizGameScreen(
                     listId = entry.arguments?.getLong("listId") ?: return@composable,
-                    mode = parseReviewMode(entry.arguments?.getString("mode")),
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(
                 route = Routes.GAME_LINK,
-                arguments = gameNavArgs()
+                arguments = listOf(navArgument("listId") { type = NavType.LongType })
             ) { entry ->
                 LinkMatchGameScreen(
                     listId = entry.arguments?.getLong("listId") ?: return@composable,
-                    mode = parseReviewMode(entry.arguments?.getString("mode")),
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(
                 route = Routes.GAME_SPELLING,
-                arguments = gameNavArgs()
+                arguments = listOf(navArgument("listId") { type = NavType.LongType })
             ) { entry ->
                 SpellingGameScreen(
                     listId = entry.arguments?.getLong("listId") ?: return@composable,
-                    mode = parseReviewMode(entry.arguments?.getString("mode")),
                     onBack = { navController.popBackStack() }
                 )
             }
             composable(
                 route = Routes.GAME_LISTENING,
-                arguments = gameNavArgs()
+                arguments = listOf(navArgument("listId") { type = NavType.LongType })
             ) { entry ->
                 ListeningGameScreen(
                     listId = entry.arguments?.getLong("listId") ?: return@composable,
-                    mode = parseReviewMode(entry.arguments?.getString("mode")),
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -313,21 +288,3 @@ private fun MainNavHost() {
     }
 }
 
-private fun gameNavArgs() = listOf(
-    navArgument("listId") { type = NavType.LongType },
-    navArgument("mode") { type = NavType.StringType }
-)
-
-private fun parseStudyMode(value: String?): StudyMode {
-    return when (value?.lowercase()) {
-        "free_practice" -> StudyMode.FREE_PRACTICE
-        else -> StudyMode.NEW_WORDS
-    }
-}
-
-private fun parseReviewMode(value: String?): ReviewMode {
-    return when (value?.lowercase()) {
-        "scheduled" -> ReviewMode.SCHEDULED
-        else -> ReviewMode.FREE_PRACTICE
-    }
-}

@@ -3,7 +3,7 @@ package com.englishworder.ui.games
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.englishworder.data.repository.WordRepository
-import com.englishworder.domain.model.ReviewMode
+import com.englishworder.domain.model.StudyFilter
 import com.englishworder.domain.model.WordWithReview
 import com.englishworder.domain.srs.EbbinghausScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,14 +27,12 @@ data class ListeningUiState(
     val finished: Boolean = false,
     val isLoading: Boolean = true,
     val listId: Long = 0,
-    val mode: ReviewMode = ReviewMode.FREE_PRACTICE,
     val phase: QuizPhase = QuizPhase.MAIN,
     val wrongQuestions: List<ListeningQuestion> = emptyList(),
     val firstPassTotal: Int = 0,
     val firstPassScore: Int = 0,
     val retryScore: Int = 0
 ) {
-    val updateSrs: Boolean get() = mode == ReviewMode.SCHEDULED
     val isRetryPhase: Boolean get() = phase == QuizPhase.RETRY
     val currentAnswer: ChoiceAnswer get() = answers.getOrNull(currentIndex) ?: ChoiceAnswer()
     val answered: Boolean get() = currentAnswer.answered
@@ -57,10 +55,10 @@ class ListeningViewModel @Inject constructor(
     private val _state = MutableStateFlow(ListeningUiState())
     val state: StateFlow<ListeningUiState> = _state.asStateFlow()
 
-    fun loadGame(listId: Long, mode: ReviewMode) {
+    fun loadGame(listId: Long) {
         viewModelScope.launch {
-            _state.value = ListeningUiState(isLoading = true, listId = listId, mode = mode)
-            val words = repository.getWordsForGame(listId, mode, 10)
+            _state.value = ListeningUiState(isLoading = true, listId = listId)
+            val words = repository.getWordsForSession(listId, StudyFilter.ALL, 10)
                 .filter { it.word.text.isNotBlank() && it.word.meaning.isNotBlank() }
 
             val questions = buildQuestions(words)
@@ -70,7 +68,6 @@ class ListeningViewModel @Inject constructor(
                 isLoading = false,
                 finished = questions.isEmpty(),
                 listId = listId,
-                mode = mode,
                 firstPassTotal = questions.size
             )
         }
@@ -101,8 +98,7 @@ class ListeningViewModel @Inject constructor(
     }
 
     fun restart() {
-        val s = _state.value
-        loadGame(s.listId, s.mode)
+        loadGame(_state.value.listId)
     }
 
     fun goToPage(page: Int) {
@@ -120,7 +116,7 @@ class ListeningViewModel @Inject constructor(
         if (state.phase == QuizPhase.MAIN) {
             viewModelScope.launch {
                 val quality = EbbinghausScheduler.qualityFromCorrect(isCorrect)
-                repository.recordReviewResult(question.word.word.id, quality, state.updateSrs)
+                repository.recordReviewResult(question.word.word.id, quality)
             }
         }
 

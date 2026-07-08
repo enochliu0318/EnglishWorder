@@ -48,7 +48,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.englishworder.domain.model.StudyMode
 import com.englishworder.domain.model.WordList
 import com.englishworder.ui.components.AppCard
 import com.englishworder.ui.components.GreenGradientBackground
@@ -60,7 +59,7 @@ import com.englishworder.ui.theme.AppColors
 fun WordListScreen(
     onOpenList: (Long) -> Unit,
     onImport: () -> Unit,
-    onStartLearn: (Long, StudyMode) -> Unit,
+    onStartLearn: (Long) -> Unit,
     viewModel: WordListViewModel = hiltViewModel()
 ) {
     val wordLists by viewModel.wordLists.collectAsState()
@@ -155,7 +154,7 @@ fun WordListScreen(
                         WordListItem(
                             wordList = list,
                             onOpenList = { onOpenList(list.id) },
-                            onStartLearn = { mode -> onStartLearn(list.id, mode) },
+                            onStartLearn = { onStartLearn(list.id) },
                             onRename = {
                                 renameTarget = list
                                 name = list.name
@@ -274,7 +273,7 @@ private fun WordPackItem(
 private fun WordListItem(
     wordList: WordList,
     onOpenList: () -> Unit,
-    onStartLearn: (StudyMode) -> Unit,
+    onStartLearn: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -313,17 +312,11 @@ private fun WordListItem(
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = { onStartLearn(StudyMode.NEW_WORDS) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
-                ) { Text("学习") }
-                OutlinedButton(
-                    onClick = { onStartLearn(StudyMode.FREE_PRACTICE) },
-                    modifier = Modifier.weight(1f)
-                ) { Text("练习") }
-            }
+            Button(
+                onClick = onStartLearn,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
+            ) { Text("学习") }
         }
     }
 }

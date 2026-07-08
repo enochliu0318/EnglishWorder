@@ -88,12 +88,16 @@ enum class GameType {
     LISTENING
 }
 
-enum class StudyMode {
-    NEW_WORDS,
-    FREE_PRACTICE
-}
+enum class StudyFilter {
+    PLAN,
+    NEW,
+    ALL;
 
-enum class ReviewMode {
-    SCHEDULED,
-    FREE_PRACTICE
+    companion object {
+        fun fromString(value: String?): StudyFilter = when (value?.lowercase()) {
+            "new" -> NEW
+            "all" -> ALL
+            else -> PLAN
+        }
+    }
 }

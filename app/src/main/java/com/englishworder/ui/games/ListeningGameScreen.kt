@@ -37,7 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.englishworder.domain.model.ReviewMode
 import com.englishworder.ui.components.AppCard
 import com.englishworder.ui.components.ScreenPadding
 import com.englishworder.ui.components.rememberWordSpeaker
@@ -52,14 +51,13 @@ private val CorrectBg = Color(0xFFE8F5E9)
 @Composable
 fun ListeningGameScreen(
     listId: Long,
-    mode: ReviewMode,
     onBack: () -> Unit,
     viewModel: ListeningViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val speaker = rememberWordSpeaker()
 
-    LaunchedEffect(listId, mode) { viewModel.loadGame(listId, mode) }
+    LaunchedEffect(listId) { viewModel.loadGame(listId) }
 
     val currentQuestion = state.questions.getOrNull(state.currentIndex)
     LaunchedEffect(state.currentIndex, state.phase, currentQuestion?.word?.word?.text) {
@@ -86,7 +84,7 @@ fun ListeningGameScreen(
                 state.finished -> FinishedView(
                     title = if (state.firstPassTotal == 0) "暂无可用单词" else "听力练习完成",
                     subtitle = if (state.firstPassTotal == 0) {
-                        if (mode == ReviewMode.SCHEDULED) "暂无待复习单词，试试自由练习" else "词库单词不足"
+                        "词库单词不足"
                     } else {
                         viewModel.finishSummary()
                     },

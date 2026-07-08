@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.englishworder.domain.model.ReviewMode
 import com.englishworder.ui.components.ScreenPadding
 import com.englishworder.ui.components.rememberWordSpeaker
 import com.englishworder.ui.theme.AppColors
@@ -53,14 +52,13 @@ private val SelectedBorder = Color(0xFF1B5E20)
 @Composable
 fun LinkMatchGameScreen(
     listId: Long,
-    mode: ReviewMode,
     onBack: () -> Unit,
     viewModel: LinkMatchViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val speaker = rememberWordSpeaker()
 
-    LaunchedEffect(listId, mode) { viewModel.loadGame(listId, mode) }
+    LaunchedEffect(listId) { viewModel.loadGame(listId) }
 
     Scaffold(
         topBar = {
@@ -217,14 +215,13 @@ private fun LinkTileCard(
 @Composable
 fun SpellingGameScreen(
     listId: Long,
-    mode: ReviewMode,
     onBack: () -> Unit,
     viewModel: SpellingViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val speaker = rememberWordSpeaker()
 
-    LaunchedEffect(listId, mode) { viewModel.loadGame(listId, mode) }
+    LaunchedEffect(listId) { viewModel.loadGame(listId) }
 
     Scaffold(
         topBar = {
@@ -244,7 +241,7 @@ fun SpellingGameScreen(
                 state.finished -> FinishedView(
                     title = if (state.words.isEmpty()) "暂无可用单词" else "拼写完成",
                     subtitle = if (state.words.isEmpty()) {
-                        if (mode == ReviewMode.SCHEDULED) "暂无待复习单词，试试自由练习" else "词库单词不足"
+                        "词库单词不足"
                     } else {
                         viewModel.finishSummary()
                     },

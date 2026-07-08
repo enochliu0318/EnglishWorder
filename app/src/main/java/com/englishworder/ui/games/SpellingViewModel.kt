@@ -3,7 +3,7 @@ package com.englishworder.ui.games
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.englishworder.data.repository.WordRepository
-import com.englishworder.domain.model.ReviewMode
+import com.englishworder.domain.model.StudyFilter
 import com.englishworder.domain.model.WordWithReview
 import com.englishworder.domain.srs.EbbinghausScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,7 +21,6 @@ data class SpellingUiState(
     val finished: Boolean = false,
     val isLoading: Boolean = true,
     val listId: Long = 0,
-    val mode: ReviewMode = ReviewMode.FREE_PRACTICE,
     val phase: QuizPhase = QuizPhase.MAIN,
     val wrongWordIds: List<Long> = emptyList(),
     val firstPassTotal: Int = 0,
@@ -29,7 +28,6 @@ data class SpellingUiState(
     val retryScore: Int = 0
 ) {
     val current: WordWithReview? get() = words.getOrNull(currentIndex)
-    val updateSrs: Boolean get() = mode == ReviewMode.SCHEDULED
     val isRetryPhase: Boolean get() = phase == QuizPhase.RETRY
     val currentAnswer: SpellingAnswer get() = answers.getOrNull(currentIndex) ?: SpellingAnswer()
     val input: String get() = currentAnswer.input
@@ -49,10 +47,10 @@ class SpellingViewModel @Inject constructor(
     val state: StateFlow<SpellingUiState> = _state.asStateFlow()
     private var startTime = 0L
 
-    fun loadGame(listId: Long, mode: ReviewMode) {
+    fun loadGame(listId: Long) {
         viewModelScope.launch {
-            _state.value = SpellingUiState(isLoading = true, listId = listId, mode = mode)
-            val words = repository.getWordsForGame(listId, mode, 10)
+            _state.value = SpellingUiState(isLoading = true, listId = listId)
+            val words = repository.getWordsForSession(listId, StudyFilter.ALL, 10)
                 .filter { it.word.meaning.isNotBlank() }
             _state.value = SpellingUiState(
                 words = words,
@@ -60,7 +58,6 @@ class SpellingViewModel @Inject constructor(
                 isLoading = false,
                 finished = words.isEmpty(),
                 listId = listId,
-                mode = mode,
                 firstPassTotal = words.size
             )
             startTime = System.currentTimeMillis()
@@ -68,8 +65,7 @@ class SpellingViewModel @Inject constructor(
     }
 
     fun restart() {
-        val s = _state.value
-        loadGame(s.listId, s.mode)
+        loadGame(_state.value.listId)
     }
 
     fun goToPage(page: Int) {
@@ -98,7 +94,7 @@ class SpellingViewModel @Inject constructor(
         if (state.phase == QuizPhase.MAIN) {
             viewModelScope.launch {
                 val quality = EbbinghausScheduler.qualityFromCorrect(isCorrect, elapsed)
-                repository.recordReviewResult(current.word.id, quality, state.updateSrs)
+                repository.recordReviewResult(current.word.id, quality)
             }
         }
 

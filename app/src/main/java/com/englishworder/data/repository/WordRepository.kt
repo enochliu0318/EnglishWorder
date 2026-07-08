@@ -11,8 +11,7 @@ import com.englishworder.domain.util.MeaningFormatter
 import com.englishworder.domain.model.ImportResult
 import com.englishworder.domain.model.ParsedWordEntry
 import com.englishworder.domain.model.ReviewRecord
-import com.englishworder.domain.model.ReviewMode
-import com.englishworder.domain.model.StudyMode
+import com.englishworder.domain.model.StudyFilter
 import com.englishworder.domain.model.StudyProgressOverview
 import com.englishworder.domain.model.ListStudyProgress
 import com.englishworder.domain.model.DayReviewPlan
@@ -372,29 +371,24 @@ class WordRepository @Inject constructor(
         return reviewRecordDao.getNewWords(listId, limit).map { it.toDomain() }
     }
 
-    suspend fun getWordsForLearn(listId: Long, mode: StudyMode, limit: Int = 20): List<WordWithReview> {
-        return when (mode) {
-            StudyMode.NEW_WORDS -> getNewWords(listId, limit)
-            StudyMode.FREE_PRACTICE -> reviewRecordDao.getAllWordsWithReview(listId, limit)
+    suspend fun getWordsForSession(listId: Long, filter: StudyFilter, limit: Int = 20): List<WordWithReview> {
+        return when (filter) {
+            StudyFilter.PLAN -> reviewRecordDao
+                .getDueReviewsForList(listId, EbbinghausScheduler.endOfDay(), limit)
+                .map { it.toDomain() }
+            StudyFilter.NEW -> getNewWords(listId, limit)
+            StudyFilter.ALL -> reviewRecordDao.getAllWordsWithReview(listId, limit)
                 .map { it.toDomain() }
         }
     }
 
-    suspend fun getWordsForGame(
-        listId: Long,
-        mode: ReviewMode,
-        limit: Int
-    ): List<WordWithReview> {
-        return when (mode) {
-            ReviewMode.SCHEDULED -> {
-                val due = reviewRecordDao.getDueReviews(EbbinghausScheduler.endOfDay(), limit)
-                    .map { it.toDomain() }
-                    .filter { it.word.listId == listId }
-                due
-            }
-            ReviewMode.FREE_PRACTICE -> reviewRecordDao.getAllWordsWithReview(listId, limit)
-                .map { it.toDomain() }
-        }
+    suspend fun suggestDefaultFilter(listId: Long): StudyFilter {
+        val endOfDay = EbbinghausScheduler.endOfDay()
+        val dueCount = reviewRecordDao.countDueForList(listId, endOfDay)
+        if (dueCount > 0) return StudyFilter.PLAN
+        val newCount = reviewRecordDao.countNewForList(listId)
+        if (newCount > 0) return StudyFilter.NEW
+        return StudyFilter.ALL
     }
 
     suspend fun getRandomWordsForGame(listId: Long?, limit: Int): List<WordWithReview> {
@@ -453,8 +447,7 @@ class WordRepository @Inject constructor(
         reviewRecordDao.insert(updated.toEntity())
     }
 
-    suspend fun recordReviewResult(wordId: Long, quality: Int, updateSrs: Boolean = true) {
-        if (!updateSrs) return
+    suspend fun recordReviewResult(wordId: Long, quality: Int) {
         val existing = reviewRecordDao.getByWordId(wordId)?.toDomain()
             ?: EbbinghausScheduler.createInitialRecord(wordId)
         val updated = EbbinghausScheduler.recordReview(existing, quality)

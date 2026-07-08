@@ -46,7 +46,7 @@ import com.englishworder.ui.theme.AppColors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressScreen(
-    onStartReview: () -> Unit,
+    onStartReview: (Long) -> Unit,
     onStartLearn: (Long) -> Unit,
     viewModel: ProgressViewModel = hiltViewModel()
 ) {
@@ -57,7 +57,7 @@ fun ProgressScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text("学习计划") },
+                    title = { Text("学习建议") },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             }
@@ -96,7 +96,7 @@ fun ProgressScreen(
                         )
                     }
                     items(progress.listProgress, key = { it.listId }) { list ->
-                        ListProgressCard(list, onStartLearn)
+                        ListProgressCard(list, onStartReview, onStartLearn)
                     }
                     item { EbbinghausIntervalChart() }
                 }
@@ -106,7 +106,8 @@ fun ProgressScreen(
 }
 
 @Composable
-private fun OverviewCard(progress: StudyProgressOverview, onStartReview: () -> Unit) {
+private fun OverviewCard(progress: StudyProgressOverview, onStartReview: (Long) -> Unit) {
+    val recommendedList = progress.listProgress.firstOrNull { it.dueToday > 0 }
     AppCard {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -129,18 +130,18 @@ private fun OverviewCard(progress: StudyProgressOverview, onStartReview: () -> U
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "今日待复习 ${progress.dueTodayCount} 个",
+                        "今日推荐复习 ${progress.dueTodayCount} 个",
                         style = MaterialTheme.typography.bodySmall,
                         color = AppColors.heroGreen
                     )
                 }
             }
-            if (progress.dueTodayCount > 0) {
+            if (progress.dueTodayCount > 0 && recommendedList != null) {
                 Button(
-                    onClick = onStartReview,
+                    onClick = { onStartReview(recommendedList.listId) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
-                ) { Text("开始今日复习") }
+                ) { Text("开始今日推荐") }
             }
         }
     }
@@ -220,7 +221,11 @@ private fun UpcomingDaysCard(days: List<DayReviewPlan>) {
 }
 
 @Composable
-private fun ListProgressCard(list: ListStudyProgress, onStartLearn: (Long) -> Unit) {
+private fun ListProgressCard(
+    list: ListStudyProgress,
+    onStartReview: (Long) -> Unit,
+    onStartLearn: (Long) -> Unit
+) {
     AppCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -239,14 +244,18 @@ private fun ListProgressCard(list: ListStudyProgress, onStartLearn: (Long) -> Un
                 color = AppColors.textMuted
             )
             if (list.dueToday > 0) {
-                Text("今日待复习 ${list.dueToday} 个", style = MaterialTheme.typography.bodySmall, color = AppColors.heroGreen)
-            }
-            if (list.newCount > 0) {
+                Text("今日推荐 ${list.dueToday} 个", style = MaterialTheme.typography.bodySmall, color = AppColors.heroGreen)
+                Button(
+                    onClick = { onStartReview(list.listId) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
+                ) { Text("开始今日推荐") }
+            } else if (list.newCount > 0) {
                 Button(
                     onClick = { onStartLearn(list.listId) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
-                ) { Text("学习 (${list.newCount})") }
+                ) { Text("学习新词 (${list.newCount})") }
             }
         }
     }

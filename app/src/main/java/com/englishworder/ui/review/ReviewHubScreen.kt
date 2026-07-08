@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.englishworder.domain.model.ReviewMode
 import com.englishworder.domain.model.WordList
 import com.englishworder.ui.components.AppCard
 import com.englishworder.ui.components.GreenGradientBackground
@@ -66,7 +65,7 @@ fun ReviewHubScreen(
                             color = AppColors.heroGreen
                         )
                         Text(
-                            "计划复习按艾宾浩斯曲线；自由练习可重复刷词",
+                            "游戏练习同样计入艾宾浩斯复习计划",
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -99,76 +98,14 @@ fun ReviewHubScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameModeSelectScreen(
-    gameType: String,
-    initialMode: ReviewMode = ReviewMode.FREE_PRACTICE,
-    onModeSelected: (ReviewMode) -> Unit,
-    onBack: () -> Unit
-) {
-    val gameTitle = gameTypeTitle(gameType)
-
-    GreenGradientBackground {
-        Scaffold(
-            containerColor = androidx.compose.ui.graphics.Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    title = { Text("$gameTitle · 练习模式") },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                        }
-                    }
-                )
-            }
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    Text(
-                        "选择练习模式",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.heroGreen
-                    )
-                }
-                item {
-                    ModeOptionCard(
-                        title = "计划复习",
-                        description = "仅练习今日艾宾浩斯待复习单词",
-                        selected = initialMode == ReviewMode.SCHEDULED,
-                        onClick = { onModeSelected(ReviewMode.SCHEDULED) }
-                    )
-                }
-                item {
-                    ModeOptionCard(
-                        title = "自由练习",
-                        description = "可重复刷词，不限复习计划",
-                        selected = initialMode == ReviewMode.FREE_PRACTICE,
-                        onClick = { onModeSelected(ReviewMode.FREE_PRACTICE) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun GameListSelectScreen(
     gameType: String,
-    mode: ReviewMode,
     onStart: (Long) -> Unit,
     onBack: () -> Unit,
     viewModel: WordListViewModel = hiltViewModel()
 ) {
     val wordLists by viewModel.wordLists.collectAsState()
     val gameTitle = gameTypeTitle(gameType)
-    val modeLabel = if (mode == ReviewMode.SCHEDULED) "计划复习" else "自由练习"
 
     GreenGradientBackground {
         Scaffold(
@@ -203,16 +140,11 @@ fun GameListSelectScreen(
                 ) {
                     item {
                         Text(
-                            "模式：$modeLabel",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = AppColors.textSecondary
-                        )
-                        Text(
                             "选择一个词库开始",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = AppColors.heroGreen,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = 4.dp)
                         )
                     }
                     items(wordLists, key = { it.id }) { list ->
@@ -230,34 +162,6 @@ private fun GameModeCard(title: String, description: String, onClick: () -> Unit
         Column(Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppColors.heroGreen)
             Text(description, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
-private fun ModeOptionCard(
-    title: String,
-    description: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    AppCard(onClick = onClick) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (selected) AppColors.heroGreen else MaterialTheme.colorScheme.onSurface
-            )
-            Text(description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
-            if (selected) {
-                Text(
-                    "点击继续",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AppColors.heroGreen,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
         }
     }
 }

@@ -28,6 +28,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,7 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.englishworder.domain.model.StudyMode
+import com.englishworder.domain.model.StudyFilter
 import com.englishworder.domain.model.WordWithReview
 import com.englishworder.ui.components.GreenGradientBackground
 import com.englishworder.ui.components.ScreenPadding
@@ -58,14 +61,14 @@ import com.englishworder.ui.theme.AppColors
 @Composable
 fun LearnSessionScreen(
     listId: Long,
-    mode: StudyMode,
+    initialFilter: StudyFilter?,
     onBack: () -> Unit,
     viewModel: LearnViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val speaker = rememberWordSpeaker()
 
-    LaunchedEffect(listId, mode) { viewModel.loadWords(listId, mode) }
+    LaunchedEffect(listId, initialFilter) { viewModel.loadWords(listId, initialFilter) }
 
     LaunchedEffect(state.currentIndex, state.current?.word?.text) {
         state.current?.word?.let { w ->
@@ -78,7 +81,7 @@ fun LearnSessionScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text("${state.modeLabel} ${state.progress}") },
+                    title = { Text("学习 ${state.progress}") },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     navigationIcon = {
                         IconButton(onClick = onBack) {
@@ -116,6 +119,33 @@ fun LearnSessionScreen(
                             modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            ) {
+                                StudyFilter.entries.forEach { filter ->
+                                    FilterChip(
+                                        selected = state.filter == filter,
+                                        onClick = { viewModel.setFilter(filter) },
+                                        label = {
+                                            Text(
+                                                when (filter) {
+                                                    StudyFilter.PLAN -> "今日计划"
+                                                    StudyFilter.NEW -> "新词"
+                                                    StudyFilter.ALL -> "全部"
+                                                }
+                                            )
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = AppColors.heroGreen.copy(alpha = 0.2f),
+                                            selectedLabelColor = AppColors.heroGreen
+                                        )
+                                    )
+                                }
+                            }
+
                             CardStudyPager(
                                 pageCount = state.words.size,
                                 currentPage = state.currentIndex,
@@ -185,44 +215,26 @@ fun LearnSessionScreen(
 
                             Spacer(Modifier.height(12.dp))
 
-                            if (mode == StudyMode.NEW_WORDS) {
-                                Text(
-                                    "认识和不认识都会加入复习计划",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = AppColors.textMuted
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Button(
-                                        onClick = { viewModel.answer(known = false) },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373))
-                                    ) { Text("不认识") }
-                                    Button(
-                                        onClick = { viewModel.answer(known = true) },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
-                                    ) { Text("认识") }
-                                }
-                            } else {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    OutlinedButton(
-                                        onClick = onBack,
-                                        modifier = Modifier.weight(1f)
-                                    ) { Text("完成") }
-                                    Button(
-                                        onClick = { viewModel.nextCard() },
-                                        modifier = Modifier.weight(1f),
-                                        enabled = state.currentIndex < state.words.size - 1,
-                                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
-                                    ) { Text("下一个") }
-                                }
+                            Text(
+                                "认识和不认识都会加入复习计划",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AppColors.textMuted
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Button(
+                                    onClick = { viewModel.answer(known = false) },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373))
+                                ) { Text("不认识") }
+                                Button(
+                                    onClick = { viewModel.answer(known = true) },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.heroGreen)
+                                ) { Text("认识") }
                             }
                         }
                     }

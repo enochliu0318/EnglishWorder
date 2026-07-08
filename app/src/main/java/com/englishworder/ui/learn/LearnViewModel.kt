@@ -3,7 +3,7 @@ package com.englishworder.ui.learn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.englishworder.data.repository.WordRepository
-import com.englishworder.domain.model.StudyMode
+import com.englishworder.domain.model.StudyFilter
 import com.englishworder.domain.model.WordWithReview
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,15 +17,16 @@ data class LearnUiState(
     val currentIndex: Int = 0,
     val isLoading: Boolean = true,
     val finished: Boolean = false,
-    val mode: StudyMode = StudyMode.NEW_WORDS,
+    val filter: StudyFilter = StudyFilter.PLAN,
     val listId: Long = 0,
     val cardFlipped: Boolean = false
 ) {
     val current: WordWithReview? get() = words.getOrNull(currentIndex)
     val progress: String get() = if (words.isEmpty()) "0/0" else "${currentIndex + 1}/${words.size}"
-    val modeLabel: String get() = when (mode) {
-        StudyMode.NEW_WORDS -> "学习新词"
-        StudyMode.FREE_PRACTICE -> "自由练习"
+    val filterLabel: String get() = when (filter) {
+        StudyFilter.PLAN -> "今日计划"
+        StudyFilter.NEW -> "新词"
+        StudyFilter.ALL -> "全部"
     }
 }
 
@@ -37,24 +38,31 @@ class LearnViewModel @Inject constructor(
     private val _state = MutableStateFlow(LearnUiState())
     val state: StateFlow<LearnUiState> = _state.asStateFlow()
 
-    fun loadWords(listId: Long, mode: StudyMode) {
+    fun loadWords(listId: Long, initialFilter: StudyFilter?) {
         viewModelScope.launch {
-            _state.value = LearnUiState(isLoading = true, mode = mode, listId = listId)
-            val words = repository.getWordsForLearn(listId, mode, 20)
+            val filter = initialFilter ?: repository.suggestDefaultFilter(listId)
+            _state.value = LearnUiState(isLoading = true, filter = filter, listId = listId)
+            val words = repository.getWordsForSession(listId, filter, 20)
             _state.value = LearnUiState(
                 words = words,
                 isLoading = false,
                 finished = words.isEmpty(),
-                mode = mode,
+                filter = filter,
                 listId = listId,
                 cardFlipped = false
             )
         }
     }
 
+    fun setFilter(filter: StudyFilter) {
+        val listId = _state.value.listId
+        if (listId == 0L) return
+        loadWords(listId, filter)
+    }
+
     fun restart() {
         val current = _state.value
-        loadWords(current.listId, current.mode)
+        loadWords(current.listId, current.filter)
     }
 
     fun flipCard() {
@@ -78,9 +86,7 @@ class LearnViewModel @Inject constructor(
     fun answer(known: Boolean) {
         val current = _state.value.current ?: return
         viewModelScope.launch {
-            if (_state.value.mode == StudyMode.NEW_WORDS) {
-                repository.markWordStudied(current.word.id, known)
-            }
+            repository.markWordStudied(current.word.id, known)
             advance()
         }
     }
@@ -89,9 +95,7 @@ class LearnViewModel @Inject constructor(
         val state = _state.value
         val nextIndex = state.currentIndex + 1
         if (nextIndex >= state.words.size) {
-            if (state.mode == StudyMode.NEW_WORDS) {
-                _state.value = state.copy(finished = true)
-            }
+            _state.value = state.copy(finished = true)
         } else {
             _state.value = state.copy(currentIndex = nextIndex, cardFlipped = false)
         }
