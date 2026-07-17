@@ -120,8 +120,9 @@ class QuizViewModel @Inject constructor(
             }
         }
 
+        val answeredIndex = state.currentIndex
         val newAnswers = state.answers.toMutableList()
-        newAnswers[state.currentIndex] = ChoiceAnswer(index, answered = true)
+        newAnswers[answeredIndex] = ChoiceAnswer(index, answered = true)
 
         _state.value = state.copy(
             answers = newAnswers,
@@ -145,6 +146,17 @@ class QuizViewModel @Inject constructor(
             } else {
                 state.wrongQuestions
             }
+        )
+
+        viewModelScope.scheduleAutoPageTurn(
+            atIndex = answeredIndex,
+            canProceed = {
+                val s = _state.value
+                !s.finished && s.currentIndex == answeredIndex && s.answerFor(answeredIndex).answered
+            },
+            advanceToNext = { goToPage(_state.value.currentIndex + 1) },
+            completeSession = { advanceFromLastPage() },
+            isLastPage = { answeredIndex >= _state.value.questions.lastIndex }
         )
     }
 

@@ -167,6 +167,19 @@ class LinkMatchViewModel @Inject constructor(
                 moves = state.moves + 1,
                 retryScore = if (state.phase == QuizPhase.RETRY) state.retryScore + 1 else state.retryScore
             )
+
+            if (updatedRound.isComplete) {
+                viewModelScope.scheduleAutoPageTurn(
+                    atIndex = page,
+                    canProceed = {
+                        val s = _state.value
+                        !s.finished && s.currentPage == page && s.rounds.getOrNull(page)?.isComplete == true
+                    },
+                    advanceToNext = { goToPage(_state.value.currentPage + 1) },
+                    completeSession = { advanceFromLastPage() },
+                    isLastPage = { page >= _state.value.rounds.lastIndex }
+                )
+            }
         } else {
             val newWrong = if (state.phase == QuizPhase.MAIN) {
                 state.wrongPairIds + first.pairId + second.pairId

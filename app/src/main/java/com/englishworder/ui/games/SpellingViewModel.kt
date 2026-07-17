@@ -98,8 +98,9 @@ class SpellingViewModel @Inject constructor(
             }
         }
 
+        val answeredIndex = state.currentIndex
         val newAnswers = state.answers.toMutableList()
-        newAnswers[state.currentIndex] = SpellingAnswer(
+        newAnswers[answeredIndex] = SpellingAnswer(
             input = state.input,
             feedback = if (isCorrect) "正确！" else "拼错了",
             showAnswer = true,
@@ -128,6 +129,17 @@ class SpellingViewModel @Inject constructor(
             } else {
                 state.wrongWordIds
             }
+        )
+
+        viewModelScope.scheduleAutoPageTurn(
+            atIndex = answeredIndex,
+            canProceed = {
+                val s = _state.value
+                !s.finished && s.currentIndex == answeredIndex && s.answerFor(answeredIndex).showAnswer
+            },
+            advanceToNext = { goToPage(_state.value.currentIndex + 1) },
+            completeSession = { advanceFromLastPage() },
+            isLastPage = { answeredIndex >= _state.value.words.lastIndex }
         )
     }
 

@@ -170,7 +170,7 @@ fun LearnSessionScreen(
                             }
 
                             Text(
-                                "左右滑动切换单词",
+                                "答题后自动切换 · 也可左右滑动",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = AppColors.heroGreen,
                                 modifier = Modifier.padding(vertical = 8.dp)

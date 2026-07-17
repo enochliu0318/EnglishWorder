@@ -9,7 +9,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.englishworder.ui.games.AUTO_ADVANCE_DELAY_MS
 import javax.inject.Inject
 
 data class LearnUiState(
@@ -85,8 +87,11 @@ class LearnViewModel @Inject constructor(
 
     fun answer(known: Boolean) {
         val current = _state.value.current ?: return
+        val answeredIndex = _state.value.currentIndex
         viewModelScope.launch {
             repository.markWordStudied(current.word.id, known)
+            delay(AUTO_ADVANCE_DELAY_MS)
+            if (_state.value.currentIndex != answeredIndex) return@launch
             advance()
         }
     }
