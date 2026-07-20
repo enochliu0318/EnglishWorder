@@ -135,11 +135,11 @@ fun ImportScreen(
                     AppCard {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("格式说明", fontWeight = FontWeight.Bold)
-                            Text("• CSV / Excel，第一列为单词")
-                            Text("• 可选列：音标、词性、释义、例句")
-                            Text("• 导入的释义、例句、词性优先于自动补全")
-                            Text("• 表格没有的字段才会自动查词典补全")
-                            Text("• 只填单词时自动补全中文释义和音标")
+                            Text("• 支持 CSV / Excel（.xlsx / .xls）")
+                            Text("• 推荐表头：单词、音标、释义、例句原文、例句翻译")
+                            Text("• 释义可写「n. 建议，忠告」——词性会自动拆出，释义完整保留")
+                            Text("• 表格里的释义、例句、词性优先于自动查词典")
+                            Text("• 表格没有的字段才会自动补全")
                         }
                     }
 
@@ -154,7 +154,7 @@ fun ImportScreen(
                     ) { Text("选择文件导入") }
 
                     OutlinedButton(onClick = {
-                        val template = "word,phonetic,pos,meaning,example\nabandon,/əˈbændən/,v.,放弃,They had to abandon the ship.\n"
+                        val template = "单词,音标,释义,例句原文,例句翻译\ncounsel,/'kaʊnsl/,n. 建议，忠告；商议,Blessed is the man who walks not in the counsel of the wicked...,不从恶人的计谋…\n"
                         val file = File(context.cacheDir, "word_template.csv")
                         file.writeText(template)
                         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)

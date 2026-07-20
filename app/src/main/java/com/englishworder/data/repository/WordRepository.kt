@@ -165,8 +165,9 @@ class WordRepository @Inject constructor(
                 !entry.example.isNullOrBlank() ||
                 !entry.phonetic.isNullOrBlank() ||
                 !entry.partOfSpeech.isNullOrBlank()
-            val fullMeaning = MeaningFormatter.forLearning(entry.meaning.orEmpty())
-            val short = if (entry.meaning.isNullOrBlank()) "" else MeaningFormatter.short(entry.meaning.orEmpty())
+            // 表格有释义时完整保留，不做 forLearning 截断；短释义仅用于游戏
+            val fullMeaning = entry.meaning?.trim().orEmpty()
+            val short = if (fullMeaning.isBlank()) "" else MeaningFormatter.short(fullMeaning)
             val wordId = wordDao.insert(
                 Word(
                     listId = listId,
@@ -176,7 +177,7 @@ class WordRepository @Inject constructor(
                     shortMeaning = short,
                     example = entry.example.orEmpty(),
                     partOfSpeech = entry.partOfSpeech.orEmpty(),
-                    fetchStatus = if (!entry.meaning.isNullOrBlank()) FetchStatus.OK else FetchStatus.PENDING
+                    fetchStatus = if (fullMeaning.isNotBlank()) FetchStatus.OK else FetchStatus.PENDING
                 ).toEntity()
             )
 
@@ -202,8 +203,8 @@ class WordRepository @Inject constructor(
         existing: com.englishworder.data.local.entity.WordEntity,
         entry: ParsedWordEntry
     ): com.englishworder.data.local.entity.WordEntity {
+        // 表格字段优先覆盖已有内容
         val importedMeaning = entry.meaning?.trim()?.takeIf { it.isNotBlank() }
-            ?.let { MeaningFormatter.forLearning(it) }
         val mergedMeaning = importedMeaning ?: existing.meaning
         val mergedShort = if (importedMeaning != null) {
             MeaningFormatter.short(importedMeaning)
@@ -212,13 +213,12 @@ class WordRepository @Inject constructor(
         }
         return existing.copy(
             phonetic = entry.phonetic?.trim()?.takeIf { it.isNotBlank() } ?: existing.phonetic,
-            meaning = importedMeaning ?: existing.meaning,
+            meaning = mergedMeaning,
             shortMeaning = mergedShort,
             example = entry.example?.trim()?.takeIf { it.isNotBlank() } ?: existing.example,
             partOfSpeech = entry.partOfSpeech?.trim()?.takeIf { it.isNotBlank() } ?: existing.partOfSpeech,
             fetchStatus = when {
                 mergedMeaning.isNotBlank() -> FetchStatus.OK
-                existing.meaning.isNotBlank() -> FetchStatus.OK
                 existing.fetchStatus == FetchStatus.OK -> FetchStatus.OK
                 else -> FetchStatus.PENDING
             }
