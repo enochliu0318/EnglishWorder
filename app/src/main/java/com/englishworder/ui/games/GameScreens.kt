@@ -1,14 +1,13 @@
 package com.englishworder.ui.games
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -17,7 +16,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +81,13 @@ fun LinkMatchGameScreen(
                 )
                 state.rounds.isNotEmpty() -> {
                     val currentRound = state.currentRound
+                    LaunchedEffect(state.currentPage, currentRound?.selectedId, state.phase) {
+                        val selectedId = currentRound?.selectedId ?: return@LaunchedEffect
+                        val tile = currentRound.tiles.find { it.id == selectedId } ?: return@LaunchedEffect
+                        if (tile.type == TileType.WORD) {
+                            speaker.speak(tile.text, viewModel.audioUrlFor(tile.pairId))
+                        }
+                    }
                     GameQuestionPager(
                         pageCount = state.rounds.size,
                         currentPage = state.currentPage,
@@ -108,28 +113,21 @@ fun LinkMatchGameScreen(
                                 "${if (state.isRetryPhase) "错题重练" else "连连看"} · ${state.progressLabel} · 得分 ${state.score}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
-                            Text(
-                                "英文单词可点击发音",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = AppColors.textMuted
-                            )
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(2),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .weight(1f)
                             ) {
                                 items(round.tiles.filter { !it.matched }, key = { it.id }) { tile ->
                                     val selected = isActive && round.selectedId == tile.id
-                                    val audioUrl = viewModel.audioUrlFor(tile.pairId)
                                     LinkTileCard(
                                         tile = tile,
                                         selected = selected,
                                         enabled = isActive,
-                                        onClick = { if (isActive) viewModel.selectTile(tile.id) },
-                                        onSpeak = { speaker.speak(tile.text, audioUrl) }
+                                        onClick = { if (isActive) viewModel.selectTile(tile.id) }
                                     )
                                 }
                             }
@@ -147,8 +145,7 @@ private fun LinkTileCard(
     tile: LinkTile,
     selected: Boolean,
     enabled: Boolean,
-    onClick: () -> Unit,
-    onSpeak: () -> Unit
+    onClick: () -> Unit
 ) {
     val containerColor = when {
         selected -> SelectedBg
@@ -160,53 +157,47 @@ private fun LinkTileCard(
     Card(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 88.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 8.dp else 2.dp),
         border = BorderStroke(borderWidth, borderColor)
     ) {
-        Row(
+        Column(
             Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 12.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Column(
-                Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    if (tile.type == TileType.WORD) "单词" else "释义",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (selected) SelectedBorder else if (tile.type == TileType.WORD) AppColors.heroGreen else AppColors.textMuted
-                )
-                Text(
-                    tile.text,
-                    textAlign = TextAlign.Center,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = if (selected) 17.sp else 16.sp,
-                    color = if (selected) SelectedBorder else if (tile.type == TileType.WORD) AppColors.heroGreen else AppColors.textPrimary,
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .then(
-                            if (tile.type == TileType.WORD) {
-                                Modifier.clickable(onClick = onSpeak)
-                            } else Modifier
-                        )
-                )
-            }
-            if (tile.type == TileType.WORD) {
-                IconButton(onClick = onSpeak, modifier = Modifier.padding(0.dp)) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = "发音",
-                        tint = if (selected) SelectedBorder else AppColors.heroGreen
-                    )
+            Text(
+                if (tile.type == TileType.WORD) "单词" else "释义",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) {
+                    SelectedBorder
+                } else if (tile.type == TileType.WORD) {
+                    AppColors.heroGreen
+                } else {
+                    AppColors.textMuted
                 }
-            }
+            )
+            Text(
+                tile.text,
+                textAlign = TextAlign.Center,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                fontSize = if (selected) 18.sp else 17.sp,
+                color = if (selected) {
+                    SelectedBorder
+                } else if (tile.type == TileType.WORD) {
+                    AppColors.heroGreen
+                } else {
+                    AppColors.textPrimary
+                },
+                modifier = Modifier.padding(top = 6.dp)
+            )
         }
     }
 }
